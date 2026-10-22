@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>채널 연동 상태판</title>
+<meta name="description" content="숙박 PMS에서 요금 변경·예약 취소·게스트 메시지를 4개 채널로 보낼 때의 대기열, 유형별 재시도, 웹훅 처리, 기록 대조를 눌러 보는 제안용 데모예요.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23191F28'/%3E%3Cpath d='M8 15.5 16 9l8 6.5V23H8z' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='18' r='2.2' fill='%233182F6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style id="tokens">
+:root{
+  color-scheme: light;
+  /* 강조색 하나: 토스 블루 */
+  --brand:#3182F6; --brand-hover:#1B64DA; --brand-press:#1957C2;
+  --brand-text:#1B64DA; --brand-tint:#E8F3FF; --brand-tint-2:#D6E8FF;
+  --ring:0 0 0 3px rgba(49,130,246,.32);
+  /* 회색 */
+  --page:#FFFFFF; --sec:#F2F4F6; --card:#FFFFFF; --soft:#F9FAFB;
+  --fill:#F2F4F6; --fill-2:#E5E8EB; --hair:#F2F4F6;
+  --ink:#191F28; --ink-2:#4E5968; --mut:#636D7B; --mut-2:#8B95A1;
+  /* 상태: 글자 / 점 / 바탕 */
+  --ok:#127A4F;  --ok-dot:#1FA971;  --ok-bg:#E8F7EF;
+  --warn:#8A5A00; --warn-dot:#F5A524; --warn-bg:#FFF6E3;
+  --bad:#C9252D; --bad-dot:#F04452; --bad-bg:#FFEEEF;
+  --info:#1B64DA; --info-dot:#3182F6; --info-bg:#E8F3FF;
+  --neu:#4E5968; --neu-dot:#B0B8C1; --neu-bg:#F2F4F6;
+  --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r-card:20px; --r-in:14px; --r-btn:12px; --r-pill:999px;
+  --float:0 2px 6px rgba(16,24,40,.06),0 12px 32px rgba(16,24,40,.14);
+}
+</style>
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+button{font-family:inherit}
+code,.mono{font-family:var(--mono);font-size:12px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* 맨 위 띠 */
+.band{background:var(--ink);color:#fff;font-size:13px;line-height:1.5;padding:10px 24px;text-align:center}
+.band b{font-weight:600;margin-right:6px}
+
+/* 머리 */
+.top{background:var(--page)}
+.top-in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:4px}
+.brandbox{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:40px;height:40px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
+.mark svg{width:22px;height:22px}
+.prod{font-size:15px;font-weight:700;line-height:1.3}
+.prop{font-size:13px;color:var(--mut);line-height:1.4}
+
+.seg{display:inline-flex;background:var(--fill);border-radius:var(--r-btn);padding:4px;gap:2px}
+.seg button{height:40px;border:0;background:transparent;border-radius:9px;padding:0 14px;font-size:14px;font-weight:600;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.seg button:focus-visible,.btn:focus-visible,.chip:focus-visible,.act:focus-visible,.pills a:focus-visible,.ev:focus-visible,.sw:focus-visible{outline:none;box-shadow:var(--ring)}
+
+/* 상태 점 */
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;background:var(--neu-dot)}
+.k-ok{color:var(--ok)} .k-ok .dot,.dot.ok{background:var(--ok-dot)}
+.k-warn{color:var(--warn)} .k-warn .dot,.dot.warn{background:var(--warn-dot)}
+.k-bad{color:var(--bad)} .k-bad .dot,.dot.bad{background:var(--bad-dot)}
+.k-info{color:var(--info)} .k-info .dot,.dot.info{background:var(--info-dot)}
+.k-neu{color:var(--neu)} .k-neu .dot{background:var(--neu-dot)}
+.st{display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.pulse .dot{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.pulse .dot{animation:none}html{scroll-behavior:auto}}
+
+/* 첫 화면 */
+.hero{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:32px;align-items:center;padding-top:32px;padding-bottom:32px}
+.envline{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:var(--r-pill);padding:6px 12px;margin-bottom:16px}
+h1{font-size:32px;line-height:1.3;letter-spacing:-.025em;font-weight:700;max-width:620px}
+.hero-sub{font-size:15px;color:var(--ink-2);margin-top:8px}
+.stats{background:var(--sec);border-radius:var(--r-card);padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:20px 24px}
+.stats dt{font-size:13px;color:var(--mut);font-weight:500}
+.stats dd{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:2px;font-variant-numeric:tabular-nums}
+.stats dd.k-bad{color:var(--bad)} .stats dd.k-warn{color:var(--warn)}
+.unit{font-size:15px;color:var(--mut);font-weight:500;margin-left:2px}
+
+.alerts{grid-column:1/-1;display:grid;gap:8px}
+.alerts:empty{display:none}
+.alert{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--bad-bg);border-radius:var(--r-in);padding:12px 12px 12px 20px}
+.alert p{font-size:14px;color:var(--ink);font-weight:500}
+.alert p b{color:var(--bad);font-weight:700;margin-right:6px}
+.alert p span{display:block;font-size:13px;color:var(--ink-2);font-weight:400}
+
+/* 구역 이동 */
+.jump{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:saturate(1.2)}
+.jump .wrap{padding-top:8px;padding-bottom:8px}
+.pills{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.pills::-webkit-scrollbar{display:none}
+.pills a{flex:none;display:inline-flex;align-items:center;height:44px;padding:0 16px;border-radius:var(--r-pill);font-size:15px;font-weight:600;color:var(--mut);text-decoration:none;white-space:nowrap}
+.pills a:hover{color:var(--ink);background:var(--soft)}
+.pills a.on{background:var(--ink);color:#fff}
+
+/* 회색 구역 */
+.area{background:var(--sec);padding:16px 0 64px}
+.sec{padding-top:40px}
+.sec-head{margin-bottom:16px;max-width:760px}
+h2{font-size:24px;line-height:1.3;letter-spacing:-.02em;font-weight:700}
+.sec-head p{font-size:15px;color:var(--ink-2);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:start}
+.s4{grid-column:span 4}.s5{grid-column:span 5}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.card{background:var(--card);border-radius:var(--r-card);padding:24px}
+.card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+h3{font-size:17px;font-weight:700;line-height:1.4}
+.card-h p,.help{font-size:13px;color:var(--mut);line-height:1.5}
+.card-h p{margin-top:2px}
+.src{font-size:12px;color:var(--mut);margin-top:16px;line-height:1.5}
+
+/* 버튼 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-btn);border:0;font-size:14px;font-weight:600;line-height:1.3;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.btn.pri{background:var(--brand);color:#fff}
+.btn.pri:hover{background:var(--brand-hover)} .btn.pri:active{background:var(--brand-press)}
+.btn.weak{background:var(--brand-tint);color:var(--brand-text)}
+.btn.weak:hover{background:var(--brand-tint-2)}
+.btn.gray{background:var(--fill);color:var(--ink-2)}
+.btn.gray:hover{background:var(--fill-2);color:var(--ink)}
+.btn.white{background:#fff;color:var(--ink)}
+.btn.white:hover{background:var(--soft)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px;border-radius:10px}
+.btn.full{width:100%}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
+
+/* 채널 표 */
+.ctab{display:grid}
+.crow{display:grid;grid-template-columns:1.25fr 1.35fr 1.7fr .8fr .9fr 1.25fr;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}
+.crow.head{border-top:0;padding:0 0 8px;font-size:13px;color:var(--mut);font-weight:500}
+.crow .cname{font-size:15px;font-weight:700}
+.crow .r{text-align:right}
+.crow .sub{display:block;font-size:12px;color:var(--mut);font-weight:400}
+.crow .m-lbl{display:none}
+.crow .c-mob{display:none}
+
+/* 작업 만들기 */
+.act{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:transparent;border:0;border-radius:var(--r-in);padding:12px;margin:0 -12px;width:calc(100% + 24px);cursor:pointer;color:var(--ink)}
+.act:hover{background:var(--soft)}
+.act:active{background:var(--fill)}
+.act .ic{width:44px;height:44px;border-radius:50%;background:var(--fill);display:grid;place-items:center;flex:none}
+.act .ic svg{width:20px;height:20px;stroke:var(--ink-2);stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.act b{display:block;font-size:15px;font-weight:700;line-height:1.4}
+.act span.d{display:block;font-size:13px;color:var(--mut);line-height:1.45}
+.mk-sep{height:1px;background:var(--hair);margin:12px 0 16px}
+.lbl{font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.chip{min-height:36px;padding:0 12px;border-radius:var(--r-pill);border:0;background:var(--fill);color:var(--ink-2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--fill-2)}
+.chip[aria-checked="true"]{background:var(--ink);color:#fff}
+.chip:disabled{opacity:.42;cursor:not-allowed}
+
+/* 대기열 */
+.jobs{display:grid}
+.job{padding:16px 0;border-top:1px solid var(--hair)}
+.job:first-child{border-top:0;padding-top:0}
+.job.flash{animation:flash 1.2s ease}
+@keyframes flash{0%{background:var(--brand-tint)}100%{background:transparent}}
+.job-t{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:15px;font-weight:700;line-height:1.4}
+.kind{font-size:12px;font-weight:600;color:var(--ink-2);background:var(--fill);border-radius:6px;padding:2px 8px;line-height:1.5}
+.kind.legacy{background:var(--warn-bg);color:var(--warn)}
+.job-k{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:4px;font-size:12px;color:var(--mut)}
+.job-k code{color:var(--ink-2);word-break:break-all}
+.job-k .dup{color:var(--info);font-weight:600}
+.cells{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.cell{background:var(--soft);border-radius:var(--r-in);padding:12px;min-height:96px;display:flex;flex-direction:column;gap:2px}
+.cell .cn{font-size:12px;color:var(--mut);font-weight:600}
+.cell .st{font-size:14px}
+.cell .cx{font-size:12px;color:var(--ink-2);line-height:1.45}
+.cell .btn{margin-top:auto;align-self:flex-start;margin-top:8px}
+.empty{padding:32px 0;text-align:center;color:var(--mut);font-size:14px}
+
+/* 규칙 목록 */
+.rules{display:grid;gap:0}
+.rules li{padding:14px 0;border-top:1px solid var(--hair)}
+.rules li:first-child{border-top:0;padding-top:0}
+.rules b{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+.rules p{font-size:13px;color:var(--ink-2);margin-top:4px;line-height:1.55}
+
+/* 웹훅 */
+.evs{display:grid}
+.ev{display:grid;grid-template-columns:76px 104px minmax(0,1fr) 128px;gap:12px;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--hair);padding:12px 4px;border-radius:0;cursor:pointer;color:var(--ink);font-size:14px;min-height:52px}
+.ev:hover{background:var(--soft)}
+.ev.head{cursor:default;border-top:0;font-size:13px;color:var(--mut);font-weight:500;padding-top:0;min-height:0}
+.ev.head:hover{background:transparent}
+.ev .t{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.ev code{color:var(--ink-2)}
+.ev .txt{min-width:0}
+.ev .txt small{display:block;font-size:12px;color:var(--mut)}
+.ev.new{animation:flash 1.2s ease}
+.raw{background:var(--soft);border-radius:var(--r-in);padding:12px 16px;margin:0 0 8px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap;word-break:break-all}
+.raw .mask{color:var(--warn)}
+.hook-big{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.hook-big .dot{width:12px;height:12px}
+.kv{display:grid;gap:0;margin:16px 0}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--hair);font-size:14px}
+.kv dt{color:var(--mut)}
+.kv dd{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+
+/* 기록 대조 */
+.rtab{display:grid}
+.rrow{display:grid;grid-template-columns:1.5fr .9fr 1.1fr 1.3fr 1.8fr 1.2fr;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--hair);font-size:14px}
+.rrow.head{border-top:0;padding-top:0;font-size:13px;color:var(--mut);font-weight:500}
+.rrow .tg{font-weight:700}
+.rrow .tg small,.rrow .ch small{display:block;font-size:12px;color:var(--mut);font-weight:400}
+.rrow .dir{font-size:13px;color:var(--ink-2)}
+.rrow .r{text-align:right}
+.rrow .m-lbl{display:none}
+.rrow.done{opacity:.72}
+
+/* 취소와 재고 */
+.days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.day{background:var(--soft);border-radius:var(--r-in);padding:16px}
+.day-d{font-size:14px;font-weight:700}
+.day-n{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:8px;font-variant-numeric:tabular-nums}
+.day-n .unit{font-size:14px}
+.day-n.over{color:var(--bad)}
+.day .st{font-size:13px;margin-top:4px;white-space:normal}
+.bks{display:flex;flex-direction:column;gap:4px;margin-top:12px;padding-top:12px;border-top:1px solid var(--fill-2)}
+.bk{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.bk b{font-weight:700;color:var(--ink)}
+.bk.x{color:var(--mut);text-decoration:line-through}
+.bk.x b{color:var(--mut)}
+.bk.none{color:var(--mut)}
+.tag{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:2px 8px;background:var(--warn-bg);color:var(--warn);margin-top:8px}
+.log{display:grid;gap:8px;margin-top:16px}
+.log li{font-size:13px;line-height:1.55;color:var(--ink-2);background:var(--soft);border-radius:12px;padding:10px 12px}
+.log li b{font-weight:700}
+.log li.bad{background:var(--bad-bg)}
+.log li.bad b{color:var(--bad)}
+.log li.ok b{color:var(--ok)}
+
+/* 안전장치 */
+.flags{display:grid}
+.flag{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--hair)}
+.flag:first-child{border-top:0;padding-top:0}
+.flag b{display:block;font-size:15px;font-weight:700}
+.flag span{display:block;font-size:13px;color:var(--mut)}
+.sw{position:relative;width:56px;height:44px;border-radius:22px;border:0;background:transparent;cursor:pointer;flex:none;padding:0}
+.sw::before{content:"";position:absolute;left:2px;top:6px;width:52px;height:32px;border-radius:16px;background:var(--fill-2);transition:background .15s}
+.sw::after{content:"";position:absolute;top:9px;left:5px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(16,24,40,.2);transition:transform .15s}
+.sw[aria-checked="true"]::before{background:var(--brand)}
+.sw[aria-checked="true"]::after{transform:translateX(20px)}
+.steps{display:grid;counter-reset:s}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:14px 0;border-top:1px solid var(--hair)}
+.steps li:first-child{border-top:0;padding-top:0}
+.steps li::before{counter-increment:s;content:counter(s);font-size:15px;font-weight:700;color:var(--mut);font-variant-numeric:tabular-nums}
+.steps b{display:block;font-size:15px;font-weight:700}
+.steps p{font-size:13px;color:var(--ink-2);margin-top:2px}
+
+.foot{font-size:13px;color:var(--mut);padding-top:40px;max-width:760px}
+
+/* 토스트와 대화상자 */
+.toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);display:grid;gap:8px;z-index:60;width:min(440px,calc(100% - 32px));pointer-events:none}
+.toast{background:var(--ink);color:#fff;border-radius:var(--r-btn);padding:12px 16px;font-size:14px;line-height:1.5;box-shadow:var(--float);animation:tin .2s ease}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+dialog{border:0;border-radius:24px;padding:28px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--float);color:var(--ink)}
+dialog::backdrop{background:rgba(25,31,40,.42)}
+dialog h3{font-size:20px;font-weight:700;letter-spacing:-.01em}
+dialog p{font-size:15px;color:var(--ink-2);margin-top:8px}
+dialog ul{margin-top:12px;display:grid;gap:6px}
+dialog li{font-size:14px;color:var(--ink-2);padding-left:14px;position:relative}
+dialog li::before{content:"";position:absolute;left:0;top:10px;width:5px;height:5px;border-radius:50%;background:var(--mut-2)}
+dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
+
+/* 화면 폭 */
+@media (max-width:1080px){
+  .s4,.s5,.s7,.s8{grid-column:span 12}
+  .hero{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .wrap{padding:0 16px}
+  .band{padding:10px 16px;text-align:left}
+  .band b{display:block}
+  .top-in{padding-top:16px}
+  .prod{font-size:14px}
+  .seg button{height:44px;padding:0 12px;font-size:14px}
+  .hero{gap:20px;padding-top:24px;padding-bottom:24px}
+  h1{font-size:24px}
+  .stats{padding:16px 20px;gap:16px}
+  .stats dd{font-size:24px}
+  .alert{flex-direction:column;align-items:stretch;padding:14px 16px}
+  .alert .btn{width:100%}
+  .pills a{font-size:14px;padding:0 14px}
+  .sec{padding-top:32px}
+  h2{font-size:20px}
+  .sec-head p{font-size:14px}
+  .grid{gap:12px}
+  .card{padding:20px}
+  .card-h{flex-direction:column}
+  .card-h .btn-row{width:100%}
+  .card-h .btn-row .btn{flex:1}
+  .crow.head,.rrow.head,.ev.head{display:none}
+  .crow{grid-template-columns:1fr auto;gap:4px 12px;padding:14px 0}
+  .crow:nth-child(2){border-top:0}
+  .crow .c-last,.crow .c-q,.crow .c-r,.crow .c-conn{display:none}
+  .crow .c-mob{display:block;grid-column:1/-1;font-size:13px;color:var(--mut);line-height:1.5}
+  .crow .c-mob b{font-weight:600;color:var(--bad)}
+  .rrow .m-lbl{display:inline;color:var(--mut);font-weight:400}
+  .cells{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ev{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+  .ev .t{grid-column:1;grid-row:2;font-size:12px}
+  .ev .id{display:none}
+  .ev .txt{grid-column:1;grid-row:1}
+  .ev .res{grid-column:2;grid-row:1/3;align-self:center}
+  .rrow{grid-template-columns:1fr;gap:4px;padding:16px 0}
+  .rrow:nth-child(2){border-top:0}
+  .rrow > div{display:flex;justify-content:space-between;gap:12px}
+  .rrow .tg{display:block}
+  .rrow .ch{display:flex}
+  .rrow .ch small{display:inline}
+  .rrow .dir{display:block;margin-top:4px}
+  .rrow .r{justify-content:stretch;margin-top:8px}
+  .rrow .r .btn{width:100%}
+  .days{grid-template-columns:1fr}
+  .day{display:grid;grid-template-columns:1fr auto;gap:0 12px;align-items:start}
+  .day-n{grid-column:2;grid-row:1/3;margin-top:0;text-align:right}
+  .day .st{grid-column:1}
+  .day .tag,.day .bks{grid-column:1/-1}
+  .day .tag{justify-self:start}
+  .btn-row .btn{flex:1}
+  .chip{min-height:44px;padding:0 14px}
+  .btn.sm{min-height:44px}
+  .toasts{bottom:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="band" role="note"><b>제안용 데모 · 예시</b>가상 숙소와 가상 손님이에요. Channex에 실제로 연결하지 않고 이 화면 안에서만 흉내 내요.</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brandbox">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V19H4z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="14" r="1.8" fill="#3182F6"/></svg></span>
+      <div>
+        <div class="prod">숙소 연동관리</div>
+        <div class="prop">달빛마당 스테이 · 가상 숙소</div>
+      </div>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="연결 환경">
+      <button type="button" role="radio" aria-checked="true" class="on" data-env="test"><i class="dot warn"></i>시험 환경</button>
+      <button type="button" role="radio" aria-checked="false" data-env="prod">운영</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero wrap" aria-labelledby="heroTitle">
+  <div>
+    <p class="envline"><i class="dot warn"></i>시험 환경 · Channex 시험 계정에 연결 · 실제 손님 예약과 재고는 바뀌지 않아요</p>
+    <h1 id="heroTitle">4개 채널 모두 정상이에요</h1>
+    <p class="hero-sub" id="heroSub">달빛마당 스테이 · 객실 4종</p>
+  </div>
+  <dl class="stats" aria-label="지금 상태 요약">
+    <div><dt>보내는 중</dt><dd id="stBusy">0<span class="unit">건</span></dd></div>
+    <div><dt>재시도 중</dt><dd id="stRetry">0<span class="unit">건</span></dd></div>
+    <div><dt>실패</dt><dd id="stFail">0<span class="unit">건</span></dd></div>
+    <div><dt>기록 불일치</dt><dd id="stRecon">0<span class="unit">건</span></dd></div>
+  </dl>
+  <div class="alerts" id="alerts" aria-live="polite"></div>
+</section>
+
+<nav class="jump" aria-label="구역 이동">
+  <div class="wrap">
+    <div class="pills">
+      <a href="#ch" class="on">채널 상태</a>
+      <a href="#queue">보내는 작업</a>
+      <a href="#hook">웹훅 수신</a>
+      <a href="#recon">기록 대조</a>
+      <a href="#cancel">취소와 재고</a>
+      <a href="#safe">기존 기능 보호</a>
+    </div>
+  </div>
+</nav>
+
+<main class="area">
+  <div class="wrap">
+
+    <!-- 채널 상태 -->
+    <section class="sec" id="ch" aria-labelledby="h-ch">
+      <div class="sec-head">
+        <h2 id="h-ch">채널 4곳 반영 상태</h2>
+        <p>한 번 바꾸면 네 곳에 다 들어갔는지 여기서 봐요. 채널마다 따로 들어가 확인하지 않아도 돼요.</p>
+      </div>
+      <div class="grid">
+        <div class="card s8">
+          <div class="card-h">
+            <div><h3>채널별 상태</h3><p id="chMeta">마지막 점검 --:--:--</p></div>
+          </div>
+          <div class="ctab" id="chTable" role="table" aria-label="채널별 상태"></div>
+        </div>
+
+        <div class="card s4">
+          <div class="card-h"><div><h3>작업 보내 보기</h3><p>누르면 4개 채널로 보낼 작업이 대기열에 쌓여요.</p></div></div>
+          <button type="button" class="act" data-make="rate">
+            <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0z"/><circle cx="8" cy="8" r="1.4"/></svg></span>
+            <span><b>요금 바꾸기</b><span class="d" id="dRate"></span></span>
+          </button>
+          <button type="button" class="act" data-make="cancel">
+            <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4M10 13l4 4M14 13l-4 4"/></svg></span>
+            <span><b>예약 취소 반영</b><span class="d" id="dCancel"></span></span>
+          </button>
+          <button type="button" class="act" data-make="msg">
+            <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span>
+            <span><b>게스트 메시지</b><span class="d" id="dMsg"></span></span>
+          </button>
+          <div class="mk-sep"></div>
+          <div class="lbl" id="lFail">실패 섞기</div>
+          <div class="chips" role="radiogroup" aria-labelledby="lFail" id="failChips"></div>
+          <div class="lbl" id="lCh">어느 채널에</div>
+          <div class="chips" role="radiogroup" aria-labelledby="lCh" id="chChips"></div>
+          <p class="help" style="margin:-8px 0 16px">다음에 보내는 작업 하나에만 섞여요.</p>
+          <button type="button" class="btn gray full" id="btnDup">방금 작업 한 번 더 넣기</button>
+          <p class="help" style="margin-top:8px">같은 멱등 키로 들어오면 새 작업을 만들지 않아요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 보내는 작업 -->
+    <section class="sec" id="queue" aria-labelledby="h-q">
+      <div class="sec-head">
+        <h2 id="h-q">보내는 작업</h2>
+        <p>요금·취소·메시지는 바로 보내지 않고 대기열에 먼저 기록해요. 채널마다 결과를 따로 남기고, 실패하면 유형에 맞게 다시 보내요.</p>
+      </div>
+      <div class="grid">
+        <div class="card s8">
+          <div class="card-h">
+            <div><h3>대기열</h3><p>최근 작업부터 보여요. 칸마다 채널 한 곳의 결과예요.</p></div>
+            <div class="btn-row"><button type="button" class="btn gray sm" id="btnRestart">처리기 재시작 해 보기</button></div>
+          </div>
+          <ul class="jobs" id="jobs"></ul>
+        </div>
+        <div class="card s4">
+          <div class="card-h"><div><h3>실패하면 이렇게 해요</h3></div></div>
+          <ul class="rules">
+            <li><b><i class="dot bad"></i>인증 실패</b><p>자동으로 다시 보내지 않아요. 같은 키로 몇 번을 보내도 실패해서요. 바로 알림을 보내고, 연결을 다시 한 뒤 재처리해요.</p></li>
+            <li><b><i class="dot warn"></i>호출 제한 429</b><p>Channex는 숙소당 1분에 요금·제한 10번, 재고 10번까지 받아요. 넘으면 1분 쉬고 다시 보내요. 데모에선 6초로 줄였어요.</p></li>
+            <li><b><i class="dot warn"></i>타임아웃</b><p>2초, 4초, 8초로 간격을 늘리며 다시 보내요. 같은 멱등 키라 두 번 반영되지 않아요.</p></li>
+            <li><b><i class="dot warn"></i>응답 유실</b><p>보냈는데 답이 없으면, 다시 보내기 전에 채널 쪽 값을 먼저 읽어요. 이미 들어가 있으면 다시 보내지 않아요.</p></li>
+            <li><b><i class="dot neu"></i>5번 넘게 실패</b><p>'실패'로 멈추고 알림을 보내요. 대기열에서 버튼 하나로 재처리해요.</p></li>
+          </ul>
+          <p class="src">호출 제한 숫자는 Channex 공개 문서(Rate Limits)를 10/22에 확인한 값이에요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 웹훅 -->
+    <section class="sec" id="hook" aria-labelledby="h-h">
+      <div class="sec-head">
+        <h2 id="h-h">웹훅 수신</h2>
+        <p>Channex 알림은 순서가 바뀌거나 두 번 올 수 있어요. 이벤트 ID를 먼저 저장하고 바로 응답한 뒤 처리해서, 같은 알림은 한 번만 반영해요.</p>
+      </div>
+      <div class="grid">
+        <div class="card s7">
+          <div class="card-h">
+            <div><h3>받은 알림</h3><p>줄을 누르면 저장된 내용을 볼 수 있어요. 손님 정보와 키는 가려서 남겨요.</p></div>
+          </div>
+          <div class="btn-row" style="margin-bottom:12px">
+            <button type="button" class="btn weak sm" id="btnSame">같은 알림 또 받기</button>
+            <button type="button" class="btn weak sm" id="btnOrder">순서 바뀐 알림 받기</button>
+          </div>
+          <div class="evs" id="evs"></div>
+        </div>
+        <div class="card s5">
+          <div class="card-h"><div><h3>웹훅 연결</h3></div></div>
+          <div id="hookBox"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 기록 대조 -->
+    <section class="sec" id="recon" aria-labelledby="h-r">
+      <div class="sec-head">
+        <h2 id="h-r">기록 대조</h2>
+        <p>우리 PMS 기록과 채널 쪽 값을 30분마다 비교해요. 요금·재고는 PMS 기준으로, 예약은 채널 기준으로 맞춰요.</p>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <div><h3>서로 다른 곳</h3><p id="reconMeta"></p></div>
+          <div class="btn-row">
+            <button type="button" class="btn gray" id="btnScan">지금 대조하기</button>
+            <button type="button" class="btn pri" id="btnFixAll">모두 다시 맞추기</button>
+          </div>
+        </div>
+        <div class="rtab" id="rtab"></div>
+      </div>
+    </section>
+
+    <!-- 취소와 재고 -->
+    <section class="sec" id="cancel" aria-labelledby="h-c">
+      <div class="sec-head">
+        <h2 id="h-c">예약 취소와 재고 복원</h2>
+        <p>취소되면 그 날짜의 방을 되돌려요. 사장님이 직접 막아 둔 날과 다른 손님 예약은 건드리지 않고, 같은 취소가 두 번 와도 한 번만 되돌려요.</p>
+      </div>
+      <div class="grid">
+        <div class="card s8">
+          <div class="card-h">
+            <div><h3>온돌 패밀리 · 방 2개</h3><p>예약 A 김*진(Airbnb) 11/14~11/17 3박, 예약 B 박*우(Booking.com) 11/15 1박</p></div>
+            <div class="seg" role="radiogroup" aria-label="처리 방식">
+              <button type="button" role="radio" aria-checked="true" class="on" data-inv="rule">규칙대로</button>
+              <button type="button" role="radio" aria-checked="false" data-inv="bug">규칙 없이</button>
+            </div>
+          </div>
+          <div class="days" id="days"></div>
+        </div>
+        <div class="card s4">
+          <div class="card-h"><div><h3>눌러서 확인해 보기</h3><p id="invModeNote"></p></div></div>
+          <div style="display:grid;gap:8px">
+            <button type="button" class="btn weak full" id="invCancel">예약 A 취소 알림 받기</button>
+            <button type="button" class="btn weak full" id="invDup" disabled>같은 취소 알림 한 번 더</button>
+            <button type="button" class="btn gray full" id="invReset">처음 상태로</button>
+          </div>
+          <ul class="log" id="invLog" aria-live="polite"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 기존 기능 보호 -->
+    <section class="sec" id="safe" aria-labelledby="h-s">
+      <div class="sec-head">
+        <h2 id="h-s">기존 기능 보호</h2>
+        <p>예약 불러오기처럼 지금 잘 되는 부분은 그대로 두고, 고친 부분만 하나씩 켜요.</p>
+      </div>
+      <div class="grid">
+        <div class="card s5">
+          <div class="card-h"><div><h3>하나씩 켜기</h3><p>끄면 바로 기존 코드로 돌아가요. 다시 배포하지 않아도 돼요.</p></div></div>
+          <div class="flags" id="flags"></div>
+        </div>
+        <div class="card s7">
+          <div class="card-h"><div><h3>고치는 순서</h3></div></div>
+          <ol class="steps">
+            <li><div><b>지금 동작을 테스트로 먼저 묶어요</b><p>예약 불러오기, 생성·변경·취소, 같은 알림 반복과 역순 도착. 고치기 전에 지금 결과를 그대로 기록해 두고, 고친 뒤 같은지 비교해요.</p></div></li>
+            <li><div><b>운영 데이터는 읽기 전용 사본으로 재현해요</b><p>손님 이름과 연락처를 가린 사본만 써요. 운영 DB에는 쓰기 권한 없이 들어가요.</p></div></li>
+            <li><div><b>Channex 시험 계정에서 먼저 보내 봐요</b><p>실제 숙소와 연결되지 않은 시험 계정이라 손님 예약이 생기거나 바뀌지 않아요.</p></div></li>
+            <li><div><b>운영에는 기능 하나씩 켜요</b><p>요금, 취소, 메시지 순서로 켜고, 켤 때마다 배포 전후 점검표를 확인해요.</p></div></li>
+            <li><div><b>이상하면 바로 되돌려요</b><p>기능을 끄거나 Vercel 이전 배포로 되돌려요. 백업 복구도 시험 환경에서 한 번 해 봐요.</p></div></li>
+          </ol>
+        </div>
+      </div>
+      <p class="foot">이 화면은 제안용 예시예요. 숙소 이름, 손님 이름, 예약 번호, 시각은 모두 가상이에요. 실제 작업은 대표님 코드와 Firebase 구조를 본 뒤에 맞춰요.</p>
+    </section>
+  </div>
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog id="dlgProd" aria-labelledby="dlgT">
+  <h3 id="dlgT">운영 연결은 잠겨 있어요</h3>
+  <p>이 데모는 시험 환경에서만 움직여요. 실제 작업에서도 운영 전환은 아래를 마친 뒤에만 해요.</p>
+  <ul>
+    <li>시험 환경에서 자동 테스트를 모두 통과</li>
+    <li>대표님이 결과를 보고 확인</li>
+    <li>운영 화면에는 실패 섞기 같은 시험용 버튼을 숨김</li>
+  </ul>
+  <button type="button" class="btn pri" id="dlgClose">시험 환경에 있기</button>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const CH = ['Airbnb', 'Booking.com', 'Agoda', 'Trip.com'];
+const GUEST = ['김*진', '박*우', '이*아', '최*호'];
+const now = () => Date.now();
+const pad = n => String(n).padStart(2, '0');
+const hms = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const hm = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const ago = t => { const s = Math.max(0, Math.round((now() - t) / 1000)); if (s < 10) return '방금'; if (s < 60) return s + '초 전'; const m = Math.floor(s / 60); if (m < 60) return m + '분 전'; return Math.floor(m / 60) + '시간 전'; };
+const won = n => n.toLocaleString('ko-KR');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const josa = (w, a, b) => {
+  const c = String(w).trim().slice(-1), code = c.charCodeAt(0);
+  let has;
+  if (code >= 0xAC00 && code <= 0xD7A3) has = (code - 0xAC00) % 28 !== 0;
+  else if (/[0-9]/.test(c)) has = '013678'.includes(c);
+  else has = /\.com$/i.test(String(w).trim());
+  return w + (has ? a : b);
+};
+const secLeft = t => Math.max(0, Math.ceil((t - now()) / 1000));
+
+const ST = {
+  queued: { t: '대기', k: 'neu' }, sending: { t: '보내는 중', k: 'info', p: 1 }, retry: { t: '재시도 대기', k: 'warn', p: 1 },
+  checking: { t: '확인 중', k: 'warn', p: 1 }, ok: { t: '반영됨', k: 'ok' }, failed: { t: '실패', k: 'bad' },
+  unsupported: { t: '지원 안 함', k: 'neu' }, legacy: { t: '기존 방식', k: 'neu' }
+};
+const FAIL = [['none', '없음'], ['auth', '인증 실패'], ['rate', '호출 제한 429'], ['timeout', '타임아웃'], ['lost', '응답 유실']];
+const KIND = { rate: '요금 변경', cancel: '취소 반영', msg: '게스트 메시지' };
+
+const RATE = [
+  { room: '디럭스 더블', rk: 'dlx-double', date: '11/7(토)', dk: '2026-11-07', from: 120000, to: 135000 },
+  { room: '온돌 패밀리', rk: 'ondol-family', date: '11/14(토)', dk: '2026-11-14', from: 150000, to: 165000 },
+  { room: '스탠다드 트윈', rk: 'std-twin', date: '11/21(토)', dk: '2026-11-21', from: 89000, to: 99000 },
+  { room: '독채', rk: 'house', date: '12/24(목)', dk: '2026-12-24', from: 230000, to: 280000 }
+];
+const CANCEL = [
+  { n: 24117, from: 'Booking.com', room: '온돌 패밀리', stay: '11/14~11/17' },
+  { n: 24122, from: 'Agoda', room: '디럭스 더블', stay: '11/7~11/8' },
+  { n: 24126, from: 'Airbnb', room: '스탠다드 트윈', stay: '11/21~11/23' },
+  { n: 24129, from: 'Trip.com', room: '독채', stay: '12/24~12/26' }
+];
+const MSG = [
+  { title: '체크인 안내', mk: 'checkin' },
+  { title: '와이파이·주차 안내', mk: 'wifi' },
+  { title: '체크아웃 안내', mk: 'checkout' }
+];
+
+const S = {
+  env: 'test', seq: 0, made: 3, lastKey: null,
+  idx: { rate: 0, cancel: 0, msg: 0 },
+  pick: { fail: 'none', ch: 2 },
+  flags: { rate: true, cancel: true, msg: true },
+  chan: CH.map((name, i) => ({ name, lastOk: now() - [96, 142, 610, 77][i] * 1000, retries: [0, 1, 3, 0][i], conn: 'ok' })),
+  jobs: [],
+  hook: { on: true, lastAt: now() - 75 * 1000, offAt: null, feed: [], rev: 2, busy: false },
+  events: [], openEv: null,
+  recon: [], reconAt: now() - 12 * 60 * 1000, scanning: false,
+  inv: null, invMode: 'rule', invLog: [],
+  checkedAt: now()
+};
+
+/* ---------- 작업 샘플 ---------- */
+function sample(kind) {
+  const i = S.idx[kind];
+  if (kind === 'rate') {
+    const s = RATE[i % RATE.length], c = Math.floor(i / RATE.length);
+    const from = c ? s.to + (c - 1) * 5000 : s.from, to = s.to + c * 5000;
+    return { kind, title: `${s.room} ${s.date} ${won(to)}원`, detail: `${won(from)}원에서 ${won(to)}원으로`, sub: `${s.room} ${s.date} ${won(from)}원에서 ${won(to)}원으로`, key: `rate:${s.rk}:${s.dk}:${to}` };
+  }
+  if (kind === 'cancel') {
+    const s = CANCEL[i % CANCEL.length], c = Math.floor(i / CANCEL.length), bk = 'BK-' + (s.n + c * 100);
+    return { kind, title: `${bk} 취소 · 남은 방 보내기`, sub: `${bk} · ${s.from}에서 취소됨 · ${s.room} ${s.stay}`, key: `cancel:${bk}` };
+  }
+  const s = MSG[i % MSG.length], c = Math.floor(i / MSG.length);
+  return { kind, title: `${s.title} · 오늘 체크인 4명`, sub: `${s.title} · 오늘 체크인 손님 4명(채널마다 1명)`, key: `msg:${s.mk}:2026-10-22${c ? ':' + (c + 1) : ''}` };
+}
+function paintSamples() {
+  $('#dRate').textContent = sample('rate').sub;
+  $('#dCancel').textContent = sample('cancel').sub;
+  $('#dMsg').textContent = sample('msg').sub;
+}
+
+function makeTasks(kind, legacy, fail) {
+  return CH.map((name, i) => {
+    const t = { ch: i, st: 'queued', attempt: 0, until: now() + 350 + i * 380, script: [], hist: [], note: '' };
+    if (legacy) { t.st = 'legacy'; return t; }
+    if (kind === 'msg') {
+      t.guest = GUEST[i];
+      if (i >= 2) { t.st = 'unsupported'; return t; }
+    }
+    const f = fail && fail.ch === i ? fail.type : null;
+    if (f === 'auth') t.script = ['auth'];
+    if (f === 'rate') t.script = ['rate'];
+    if (f === 'timeout') t.script = ['timeout', 'timeout'];
+    if (f === 'lost') t.script = ['lost'];
+    return t;
+  });
+}
+
+function addJob(kind) {
+  const s = sample(kind);
+  S.idx[kind]++;
+  const fail = S.pick.fail !== 'none' ? { type: S.pick.fail, ch: S.pick.ch } : null;
+  const legacy = !S.flags[kind];
+  const job = { id: ++S.seq, kind, title: s.title, key: s.key, at: now(), dup: 0, legacy, tasks: makeTasks(kind, legacy, fail) };
+  S.jobs.unshift(job);
+  trimJobs();
+  S.lastKey = s.key; S.made++;
+  let msg = `${KIND[kind]} 작업을 대기열에 넣었어요.`;
+  if (legacy) msg = `${josa(KIND[kind], '은', '는')} 새 처리가 꺼져 있어 기존 코드로 보냈어요.`;
+  else if (fail) {
+    const skip = kind === 'msg' && fail.ch >= 2;
+    const fl = FAIL.find(f => f[0] === fail.type)[1];
+    msg = skip ? `${josa(CH[fail.ch], '은', '는')} 메시지를 지원하지 않아 실패를 섞지 않았어요.` : `${CH[fail.ch]} 작업에 ${josa(fl, '을', '를')} 섞었어요.`;
+    S.pick.fail = 'none'; paintChips();
+  }
+  toast(msg);
+  paintSamples();
+  renderAll();
+  flashJob(job.id);
+}
+function trimJobs() {
+  const live = j => j.tasks.some(t => ['queued', 'sending', 'retry', 'checking', 'failed'].includes(t.st));
+  while (S.jobs.length > 6) {
+    const idx = [...S.jobs].reverse().findIndex(j => !live(j));
+    if (idx === -1) break;
+    S.jobs.splice(S.jobs.length - 1 - idx, 1);
+  }
+}
+function flashJob(id) {
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-job="${id}"]`);
+    if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  });
+}
+
+/* ---------- 처리기 ---------- */
+function start(t) {
+  t.st = 'sending'; t.attempt++;
+  const nx = t.script[0];
+  t.until = now() + (nx === 'timeout' ? 1800 : nx === 'lost' ? 1100 : 650 + Math.random() * 650);
+}
+function okNote(job, t) {
+  const h = t.hist;
+  const base = job.kind === 'msg' ? `${t.guest}님께 보냄` : '한 번에 반영';
+  if (!h.length) return base;
+  const to = h.filter(x => x === 'timeout').length, r = h.filter(x => x === 'rate').length, parts = [];
+  if (h.includes('auth')) parts.push('다시 연결한 뒤');
+  if (to) parts.push(`타임아웃 ${to}번`);
+  if (r) parts.push(`429 ${r}번`);
+  return `${t.attempt}번째 시도에 반영 · ${parts.join(', ')}`;
+}
+function finish(job, t) {
+  const c = S.chan[t.ch];
+  let out = t.script.shift();
+  if (!out && c.conn === 'reauth') out = 'auth';
+  if (!out) { t.st = 'ok'; t.okAt = now(); c.lastOk = t.okAt; t.note = okNote(job, t); return; }
+  t.hist.push(out);
+  if (out === 'auth') {
+    t.st = 'failed'; t.fail = 'auth';
+    if (c.conn !== 'reauth') { c.conn = 'reauth'; c.authAt = now(); toast(`${c.name} 연결 인증이 만료됐어요. 관리자에게 알림을 보냈어요.`); }
+    return;
+  }
+  if (out === 'rate') { t.st = 'retry'; t.reason = 'rate'; t.until = now() + 6000; c.retries++; return; }
+  if (out === 'timeout') { const n = t.hist.filter(x => x === 'timeout').length; t.st = 'retry'; t.reason = 'timeout'; t.wait = [2, 4, 8][n - 1]; t.until = now() + t.wait * 1000; c.retries++; return; }
+  if (out === 'lost') { t.st = 'checking'; t.until = now() + 1500; t.lost = true; }
+}
+function step() {
+  const t0 = now(); let dirty = false;
+  for (const j of S.jobs) for (const t of j.tasks) {
+    if ((t.st === 'queued' || t.st === 'retry') && t0 >= t.until) { start(t); dirty = true; }
+    else if (t.st === 'sending' && t0 >= t.until) { finish(j, t); dirty = true; }
+    else if (t.st === 'checking' && t0 >= t.until) {
+      t.st = 'ok'; t.okAt = t0; S.chan[t.ch].lastOk = t0;
+      t.note = t.restart ? '재시작 뒤 확인해 보니 이미 반영 · 다시 안 보냄' : '답은 없었지만 이미 반영돼 있어 다시 안 보냄';
+      dirty = true;
+    }
+  }
+  if (dirty) renderAll(); else live();
+}
+function reconnect(ch) {
+  const c = S.chan[ch];
+  c.conn = 'ok';
+  let n = 0;
+  for (const j of S.jobs) for (const t of j.tasks) if (t.ch === ch && t.st === 'failed') { t.st = 'queued'; t.until = now() + 400 + n * 300; n++; }
+  toast(`${c.name} 연결을 다시 했어요. 실패한 작업 ${n}건을 같은 키로 재처리해요.`);
+  renderAll();
+}
+
+/* ---------- 그리기: 첫 화면 ---------- */
+function counts() {
+  const all = S.jobs.flatMap(j => j.tasks);
+  return {
+    busy: all.filter(t => t.st === 'queued' || t.st === 'sending'),
+    retry: all.filter(t => t.st === 'retry' || t.st === 'checking'),
+    failed: all.filter(t => t.st === 'failed'),
+    recon: S.recon.filter(r => r.st !== 'fixed').length
+  };
+}
+const names = ts => [...new Set(ts.map(t => CH[t.ch]))].join('·');
+function renderHero() {
+  const c = counts();
+  let title = '4개 채널 모두 정상이에요';
+  if (!S.hook.on) title = '웹훅이 꺼져서 새 예약 알림을 못 받고 있어요';
+  else if (c.failed.length) title = `${names(c.failed)} 작업이 실패해서 확인이 필요해요`;
+  else if (c.retry.length) title = `${names(c.retry)}에 보낼 작업을 다시 보내는 중이에요`;
+  else if (c.busy.length) title = `작업을 채널 ${new Set(c.busy.map(t => t.ch)).size}곳에 보내는 중이에요`;
+  $('#heroTitle').textContent = title;
+  $('#heroSub').textContent = `달빛마당 스테이 · 객실 4종 · 오늘 만든 작업 ${S.made}건`;
+  const set = (id, n, k) => { const el = $(id); el.innerHTML = `${n}<span class="unit">건</span>`; el.className = n && k ? 'k-' + k : ''; };
+  set('#stBusy', c.busy.length); set('#stRetry', c.retry.length, 'warn'); set('#stFail', c.failed.length, 'bad'); set('#stRecon', c.recon, 'warn');
+
+  const al = [];
+  if (!S.hook.on) al.push(S.hook.feed.length
+    ? `<div class="alert"><p><b>웹훅 꺼짐</b>${hms(S.hook.offAt)}부터 Channex 알림이 오지 않아요.<span>관리자에게 알림을 보냈어요. 주기 점검으로 빠진 예약 ${S.hook.feed.length}건을 가져올 수 있어요.</span></p><button type="button" class="btn pri" data-act="fill">빠진 예약 가져오기</button></div>`
+    : `<div class="alert"><p><b>웹훅 꺼짐</b>빠진 예약은 모두 가져왔어요.<span>웹훅을 다시 켜야 새 알림을 바로 받아요. 켜기 전까지는 10분마다 피드로 채워요.</span></p><button type="button" class="btn white" data-act="hookon">웹훅 다시 켜기</button></div>`);
+  S.chan.forEach((ch, i) => { if (ch.conn === 'reauth') al.push(`<div class="alert"><p><b>연결 끊김</b>${ch.name} 연결 인증이 만료됐어요.<span>자동으로 다시 보내지 않고 멈춰 뒀어요. 다시 연결하면 실패한 작업을 이어서 보내요.</span></p><button type="button" class="btn white" data-act="reauth" data-ch="${i}">다시 연결하고 재처리</button></div>`); });
+  $('#alerts').innerHTML = al.join('');
+}
+
+/* ---------- 채널 표 ---------- */
+function chanState(i) {
+  const ts = S.jobs.flatMap(j => j.tasks.filter(t => t.ch === i));
+  if (S.chan[i].conn === 'reauth') return { k: 'bad', t: '다시 연결 필요' };
+  if (ts.some(t => t.st === 'failed')) return { k: 'bad', t: '실패 있음' };
+  if (ts.some(t => t.st === 'retry' || t.st === 'checking')) return { k: 'warn', t: '재시도 중', p: 1 };
+  if (ts.some(t => t.st === 'queued' || t.st === 'sending')) return { k: 'info', t: '보내는 중', p: 1 };
+  return { k: 'ok', t: '정상' };
+}
+function renderChan() {
+  const rows = ['<div class="crow head" role="row"><span role="columnheader">채널</span><span role="columnheader">상태</span><span role="columnheader">마지막 정상 반영</span><span role="columnheader" class="r">처리 중</span><span role="columnheader" class="r">오늘 재시도</span><span role="columnheader">연결</span></div>'];
+  S.chan.forEach((c, i) => {
+    const s = chanState(i);
+    const q = S.jobs.flatMap(j => j.tasks).filter(t => t.ch === i && ['queued', 'sending', 'retry', 'checking'].includes(t.st)).length;
+    const conn = c.conn === 'reauth' ? '<span class="st k-bad"><i class="dot"></i>인증 만료</span>' : '<span class="st k-ok"><i class="dot"></i>연결됨</span>';
+    rows.push(`<div class="crow" role="row">
+      <span class="cname" role="cell">${c.name}</span>
+      <span role="cell"><span class="st k-${s.k}${s.p ? ' pulse' : ''}"><i class="dot"></i>${s.t}</span></span>
+      <span class="c-last num" role="cell"><span class="m-lbl">마지막 정상 반영</span><span><span>${hms(c.lastOk)}</span><span class="sub" data-ago="${c.lastOk}">${ago(c.lastOk)}</span></span></span>
+      <span class="c-q r num" role="cell"><span class="m-lbl">처리 중</span><span>${q}건</span></span>
+      <span class="c-r r num" role="cell"><span class="m-lbl">오늘 재시도</span><span>${c.retries}번</span></span>
+      <span class="c-conn" role="cell"><span class="m-lbl">연결</span>${conn}</span>
+      <span class="c-mob num">마지막 정상 ${hms(c.lastOk)} · 처리 중 ${q}건 · 오늘 재시도 ${c.retries}번${c.conn === 'reauth' ? ' · <b>인증 만료</b>' : ''}</span>
+    </div>`);
+  });
+  $('#chTable').innerHTML = rows.join('');
+  $('#chMeta').textContent = `마지막 점검 ${hms(S.checkedAt)} · 1분마다`;
+}
+
+/* ---------- 대기열 ---------- */
+function cellText(job, t) {
+  switch (t.st) {
+    case 'queued': return '순서 기다리는 중';
+    case 'sending': return t.attempt > 1 ? `${t.attempt}번째 보내는 중 · 같은 멱등 키` : (job.kind === 'msg' ? `${t.guest}님께 보내는 중` : 'Channex로 보내는 중');
+    case 'retry': return t.reason === 'rate'
+      ? `호출 제한 429 · 1분 쉬고 다시(데모 6초) · <span data-cd="${t.until}">${secLeft(t.until)}</span>초 남음`
+      : `타임아웃 · ${t.wait}초 뒤 다시 · <span data-cd="${t.until}">${secLeft(t.until)}</span>초 남음`;
+    case 'checking': return t.restart ? '재시작 뒤 반영됐는지 먼저 확인 중' : '답이 없어 반영됐는지 먼저 확인 중';
+    case 'ok': return esc(t.note);
+    case 'failed': return '연결 인증 만료 · 자동 재시도 안 함';
+    case 'unsupported': return 'Channex 메시지 API 대상이 아니에요(문서 기준)';
+    case 'legacy': return '기존 코드로 보냄 · 결과 추적 안 함';
+  }
+  return '';
+}
+function renderJobs() {
+  if (!S.jobs.length) { $('#jobs').innerHTML = '<li class="empty">보낼 작업이 없어요. 위에서 작업을 하나 보내 보세요.</li>'; return; }
+  $('#jobs').innerHTML = S.jobs.map(j => `
+    <li class="job" data-job="${j.id}">
+      <div class="job-t"><span class="kind${j.legacy ? ' legacy' : ''}">${j.legacy ? '기존 방식 · ' : ''}${KIND[j.kind]}</span>${esc(j.title)}</div>
+      <div class="job-k"><span>멱등 키 <code>${esc(j.key)}</code></span><span class="num">${hms(j.at)}</span>${j.dup ? `<span class="dup">같은 요청 ${j.dup}번 막음</span>` : ''}</div>
+      <div class="cells">${j.tasks.map(t => {
+        const s = ST[t.st];
+        return `<div class="cell"><span class="cn">${CH[t.ch]}</span><span class="st k-${s.k}${s.p ? ' pulse' : ''}"><i class="dot"></i>${s.t}</span><span class="cx">${cellText(j, t)}</span>${t.st === 'failed' ? `<button type="button" class="btn white sm" data-act="reauth" data-ch="${t.ch}">다시 연결하고 재처리</button>` : ''}</div>`;
+      }).join('')}</div>
+    </li>`).join('');
+}
+
+/* ---------- 웹훅 ---------- */
+const RES = { done: { t: '처리함', k: 'ok' }, dup: { t: '중복 · 건너뜀', k: 'neu' }, old: { t: '옛 알림 · 무시', k: 'warn' }, fill: { t: '보충함', k: 'info' } };
+function ev(o) { return Object.assign({ at: now(), key: Math.random().toString(36).slice(2, 8) }, o); }
+function payload(e) {
+  const L = [];
+  L.push(`event: "${e.type}"`, `event_id: "${e.id}"`);
+  if (e.rev) L.push(`revision: ${e.rev}`);
+  L.push(`booking_id: "${e.bk}"`, `channel: "${e.ch}"`);
+  L.push(`guest_name: <span class="mask">"${e.guest}"</span>`, `phone: <span class="mask">"010-****-${e.ph}"</span>`, `api_key: <span class="mask">"(가림)"</span>`);
+  L.push(`received_at: "${hms(e.at)}"`);
+  const res = { done: 'ACK 후 처리', dup: '같은 event_id가 있어 처리 안 함', old: `이미 ${e.cur}번째 수정까지 반영 · 덮어쓰지 않음`, fill: '피드에서 가져와 처리 후 ACK' }[e.res];
+  L.push(`result: "${res}"`);
+  return L.join('\n');
+}
+function renderEvents() {
+  const head = '<div class="ev head"><span>받은 시각</span><span class="id">이벤트 ID</span><span>내용</span><span>처리 결과</span></div>';
+  const rows = S.events.slice(0, 8).map(e => {
+    const r = RES[e.res], open = S.openEv === e.key;
+    return `<button type="button" class="ev${e.fresh ? ' new' : ''}" data-ev="${e.key}" aria-expanded="${open}">
+      <span class="t">${hms(e.at)}</span><span class="id"><code>${e.id}</code></span>
+      <span class="txt">${esc(e.text)}${e.sub ? `<small>${esc(e.sub)}</small>` : ''}</span>
+      <span class="res"><span class="st k-${r.k}"><i class="dot"></i>${r.t}</span></span>
+    </button>${open ? `<div class="raw">${payload(e)}</div>` : ''}`;
+  }).join('');
+  $('#evs').innerHTML = head + rows;
+  S.events.forEach(e => { e.fresh = false; });
+  const off = !S.hook.on || S.hook.busy;
+  $('#btnSame').disabled = off; $('#btnOrder').disabled = off;
+  $('#btnSame').title = $('#btnOrder').title = !S.hook.on ? '웹훅이 꺼져 있어 알림이 오지 않아요' : '';
+}
+function nextCheck() { const d = new Date(); d.setSeconds(0, 0); d.setMinutes(Math.floor(d.getMinutes() / 10) * 10 + 10); return d.getTime(); }
+function renderHook() {
+  const h = S.hook;
+  if (h.on) {
+    $('#hookBox').innerHTML = `
+      <div class="hook-big k-ok"><i class="dot"></i><span style="color:var(--ink)">켜짐</span></div>
+      <p class="help" style="margin-top:4px">마지막 알림 ${hms(h.lastAt)} · <span data-ago="${h.lastAt}">${ago(h.lastAt)}</span></p>
+      <dl class="kv">
+        <div><dt>주기 점검</dt><dd>10분마다 · 다음 ${hm(nextCheck())}</dd></div>
+        <div><dt>ACK 안 된 예약 변경</dt><dd>0건</dd></div>
+        <div><dt>웹훅 설정 확인</dt><dd>켜짐 · ${hm(S.checkedAt)}</dd></div>
+      </dl>
+      <button type="button" class="btn gray full" data-act="hookoff">웹훅 꺼짐 흉내 내기</button>
+      <p class="src">Channex는 ACK하지 않은 예약 변경을 피드로 계속 보여 줘요. 그래서 웹훅이 꺼져도 피드를 읽어 빠진 예약을 채울 수 있어요. (Channex 문서, 10/22 확인)</p>`;
+  } else {
+    $('#hookBox').innerHTML = `
+      <div class="hook-big k-bad"><i class="dot"></i><span>꺼짐 감지</span></div>
+      <p class="help" style="margin-top:4px">${hms(h.offAt)}부터 알림이 없고, 웹훅 설정이 꺼져 있어요.</p>
+      <dl class="kv">
+        <div><dt>주기 점검</dt><dd>10분마다 · 다음 ${hm(nextCheck())}</dd></div>
+        <div><dt>ACK 안 된 예약 변경</dt><dd class="${h.feed.length ? 'k-bad' : ''}">${h.feed.length}건</dd></div>
+        <div><dt>관리자 알림</dt><dd>보냄 · ${hm(h.offAt)}</dd></div>
+      </dl>
+      <div style="display:grid;gap:8px">
+        <button type="button" class="btn pri full" data-act="fill" ${h.feed.length ? '' : 'disabled'}>빠진 예약 가져오기</button>
+        <button type="button" class="btn weak full" data-act="hookon">웹훅 다시 켜기</button>
+      </div>
+      <p class="src">점검 시각을 기다리지 않고 지금 바로 가져올 수도 있어요.</p>`;
+  }
+}
+function sameAgain() {
+  const last = S.events.find(e => e.res === 'done' || e.res === 'fill');
+  if (!last) return;
+  S.events.unshift(ev({ id: last.id, type: last.type, text: last.text, sub: '같은 이벤트 ID가 이미 있어요', bk: last.bk, ch: last.ch, guest: last.guest, ph: last.ph, res: 'dup', fresh: true }));
+  S.hook.lastAt = now();
+  toast(`${last.id}는 이미 처리한 알림이라 건너뛰었어요.`);
+  renderEvents(); renderHook();
+}
+function outOfOrder() {
+  const cur = S.hook.rev, newer = cur + 2, older = cur + 1;
+  const base = { type: 'booking_modification', bk: 'BK-24131', ch: 'Booking.com', guest: '이*아', ph: '4821' };
+  const people = n => `인원 ${n}명에서 ${n + 1}명으로`;
+  S.hook.busy = true;
+  S.events.unshift(ev(Object.assign({}, base, { id: 'evt_' + (0x9c4200 + newer * 7).toString(16), rev: newer, text: `BK-24131 변경 · ${newer}번째 수정`, sub: people(newer - 2), res: 'done', fresh: true })));
+  S.hook.rev = newer; S.hook.lastAt = now();
+  renderEvents(); renderHook();
+  setTimeout(() => {
+    S.events.unshift(ev(Object.assign({}, base, { id: 'evt_' + (0x9c4200 + older * 7).toString(16), rev: older, cur: newer, text: `BK-24131 변경 · ${older}번째 수정`, sub: `늦게 도착 · 이미 ${newer}번째까지 반영`, res: 'old', fresh: true })));
+    S.hook.busy = false; S.hook.lastAt = now();
+    toast(`${older}번째 수정 알림이 늦게 와서 무시했어요. ${newer}번째가 최신이에요.`);
+    renderEvents(); renderHook();
+  }, 1100);
+}
+function hookOff() {
+  S.hook.on = false; S.hook.offAt = now();
+  S.hook.feed = [
+    { id: 'rev_5d20a1', type: 'booking_new', text: '새 예약 BK-24138 · Booking.com', sub: '피드에서 보충 · 온돌 패밀리 11/28(토)', bk: 'BK-24138', ch: 'Booking.com', guest: '정*민', ph: '7730' },
+    { id: 'rev_5d20a7', type: 'booking_cancellation', text: 'BK-24135 취소 · Airbnb', sub: '피드에서 보충 · 재고 1실 복원', bk: 'BK-24135', ch: 'Airbnb', guest: '한*수', ph: '1904' }
+  ];
+  toast('웹훅이 꺼진 걸 감지했어요. 관리자에게 알림을 보냈어요.');
+  renderAll();
+}
+function fillMissed() {
+  const n = S.hook.feed.length;
+  if (!n) return;
+  S.hook.feed.forEach((f, i) => S.events.unshift(ev(Object.assign({}, f, { res: 'fill', fresh: true, at: now() + i }))));
+  S.hook.feed = [];
+  toast(`빠진 예약 변경 ${n}건을 가져와 반영하고 ACK까지 했어요.`);
+  renderAll();
+}
+function hookOn() {
+  S.hook.on = true; S.hook.lastAt = now();
+  toast(S.hook.feed.length ? '웹훅을 다시 켰어요. 남은 변경은 다음 점검 때 가져와요.' : '웹훅을 다시 켰어요.');
+  renderAll();
+}
+
+/* ---------- 기록 대조 ---------- */
+function seedRecon() {
+  S.recon = [
+    { id: 1, tg: '11/22(일) 스탠다드 트윈', tgs: '재고', item: '판매 상태', ours: '판매중 · 1실', theirs: '판매중지', ch: 1, dir: '채널을 PMS에 맞춰요 · 취소 뒤 판매중지가 남은 경우', st: 'open' },
+    { id: 2, tg: '11/7(토) 디럭스 더블', tgs: '요금', item: '요금', ours: '135,000원', theirs: '120,000원', ch: 2, dir: '채널을 PMS에 맞춰요 · 요금 반영 누락', st: 'open' },
+    { id: 3, tg: 'BK-24098 · 스탠다드 트윈', tgs: '예약', item: '예약 상태', ours: '확정', theirs: '취소됨', ch: 3, dir: 'PMS를 채널에 맞추고 남은 방을 되돌려요', st: 'open' },
+    { id: 4, tg: 'BK-24120 · 체크인 안내', tgs: '메시지', item: '메시지', ours: '보냄', theirs: '기록 없음', ch: 0, dir: '같은 멱등 키로 한 번만 다시 보내요', st: 'open' }
+  ];
+}
+function renderRecon() {
+  const open = S.recon.filter(r => r.st !== 'fixed').length;
+  $('#reconMeta').textContent = S.scanning ? '대조하는 중이에요' : `마지막 대조 ${hms(S.reconAt)} · 30분마다 · 다른 곳 ${open}건`;
+  const head = '<div class="rrow head"><span>대상</span><span>항목</span><span>우리 PMS</span><span>채널 쪽</span><span>맞추는 방향</span><span class="r"></span></div>';
+  if (!S.recon.length) {
+    $('#rtab').innerHTML = head + `<div class="empty">서로 다른 곳이 없어요. 다음 대조는 ${hm(S.reconAt + 30 * 60 * 1000)}이에요.</div>`;
+  } else {
+    $('#rtab').innerHTML = head + S.recon.map(r => {
+      let act;
+      if (r.st === 'open') act = `<button type="button" class="btn weak sm" data-fix="${r.id}">다시 맞추기</button>`;
+      else if (r.st === 'fixing') act = '<span class="st k-info pulse"><i class="dot"></i>맞추는 중</span>';
+      else act = `<span class="st k-ok"><i class="dot"></i>맞춤 · ${hm(r.at)}</span>`;
+      return `<div class="rrow${r.st === 'fixed' ? ' done' : ''}">
+        <div class="tg">${esc(r.tg)}</div>
+        <div><span class="m-lbl">항목</span><span>${r.item}</span></div>
+        <div><span class="m-lbl">우리 PMS</span><span>${r.ours}</span></div>
+        <div class="ch"><span class="m-lbl">채널 쪽</span><span><b style="font-weight:600">${r.theirs}</b> <small>${CH[r.ch]}</small></span></div>
+        <div class="dir">${r.dir}</div>
+        <div class="r">${act}</div>
+      </div>`;
+    }).join('');
+  }
+  $('#btnFixAll').disabled = !S.recon.some(r => r.st === 'open');
+  $('#btnScan').disabled = S.scanning;
+  $('#btnScan').textContent = S.scanning ? '대조하는 중…' : '지금 대조하기';
+}
+function fix(id, delay = 0) {
+  const r = S.recon.find(x => x.id === id);
+  if (!r || r.st !== 'open') return;
+  r.st = 'fixing';
+  setTimeout(() => { r.st = 'fixed'; r.at = now(); S.chan[r.ch].lastOk = now(); renderAll(); }, 1100 + delay);
+}
+function scan() {
+  S.scanning = true; renderRecon();
+  setTimeout(() => {
+    S.scanning = false; S.reconAt = now();
+    S.recon = S.recon.filter(r => r.st !== 'fixed');
+    const failed = counts().failed.length;
+    const open = S.recon.length;
+    toast(open ? `대조를 마쳤어요. 서로 다른 곳 ${open}건이 남아 있어요.` : failed ? `서로 다른 곳은 없어요. 실패한 작업 ${failed}건은 대기열에서 재처리해 주세요.` : '대조를 마쳤어요. 서로 다른 곳이 없어요.');
+    renderAll();
+  }, 1200);
+}
+
+/* ---------- 취소와 재고 ---------- */
+function invInit() {
+  S.inv = {
+    total: 2,
+    A: { who: '김*진', ch: 'Airbnb', bk: 'BK-24140', days: [0, 1, 2], cancelled: false },
+    B: { who: '박*우', ch: 'Booking.com', bk: 'BK-24141', days: [1] },
+    days: [{ d: '11/14(토)', manual: false, left: 1, open: true }, { d: '11/15(일)', manual: false, left: 0, open: false }, { d: '11/16(월)', manual: true, left: 1, open: false }],
+    events: 0
+  };
+  S.invLog = [];
+}
+function trueLeft(i) { const v = S.inv; let n = v.total; if (!v.A.cancelled && v.A.days.includes(i)) n--; if (v.B.days.includes(i)) n--; return n; }
+function dayStatus(i) {
+  const v = S.inv, d = v.days[i], tl = trueLeft(i);
+  if (S.invMode === 'bug') {
+    if (d.manual && d.open) return { k: 'bad', t: '판매 열림 · 막아 둔 날인데 풀림' };
+    if (d.left > tl) return { k: 'bad', t: `판매중 ${d.left}실 · 실제 남은 방은 ${tl}실` };
+  }
+  if (d.manual) return { k: 'warn', t: '판매중지 · 사장님이 막아 둠' };
+  if (d.left <= 0) return { k: 'neu', t: '마감 · 남은 방 없음' };
+  return { k: 'ok', t: `판매중 · ${d.left}실` };
+}
+function renderInv() {
+  const v = S.inv;
+  $('#days').innerHTML = v.days.map((d, i) => {
+    const s = dayStatus(i);
+    const bks = [];
+    if (v.A.days.includes(i)) bks.push(`<span class="bk${v.A.cancelled ? ' x' : ''}"><b>A</b>${v.A.who} · ${v.A.ch}${v.A.cancelled ? ' · 취소됨' : ''}</span>`);
+    if (v.B.days.includes(i)) bks.push(`<span class="bk"><b>B</b>${v.B.who} · ${v.B.ch}</span>`);
+    if (!bks.length) bks.push('<span class="bk none">예약 없음</span>');
+    return `<div class="day">
+      <div class="day-d">${d.d}</div>
+      <div class="day-n${d.left > v.total ? ' over' : ''}">${d.left}<span class="unit">/ ${v.total}실</span></div>
+      <span class="st k-${s.k}"><i class="dot"></i>${s.t}</span>
+      ${d.manual ? '<span class="tag">수동 판매중지</span>' : ''}
+      <div class="bks">${bks.join('')}</div>
+    </div>`;
+  }).join('');
+  $('#invLog').innerHTML = S.invLog.map(l => `<li class="${l.k || ''}">${l.h}</li>`).join('');
+  $('#invDup').disabled = !v.events;
+  $('#invCancel').disabled = !!v.events;
+  $('#invModeNote').textContent = S.invMode === 'rule' ? '규칙대로 처리할 때예요.' : '취소마다 방을 1개씩 더하고, 날짜를 모두 판매로 여는 단순한 방식일 때예요(예시).';
+}
+function invCancel(dup) {
+  const v = S.inv;
+  v.events++;
+  if (S.invMode === 'rule') {
+    if (v.A.cancelled) {
+      S.invLog.unshift({ k: 'ok', h: '<b>복원 안 함</b> 같은 취소 알림이 또 왔지만 BK-24140은 이미 취소된 예약이에요. 방 수는 그대로예요.' });
+    } else {
+      const before = v.days.map(d => d.left);
+      v.A.cancelled = true;
+      v.days.forEach((d, i) => { if (v.A.days.includes(i)) { d.left = trueLeft(i); d.open = !d.manual && d.left > 0; } });
+      S.invLog.unshift({ k: 'ok', h: `<b>취소 반영</b> 11/14 ${before[0]}실에서 ${v.days[0].left}실로, 11/15 ${before[1]}실에서 ${v.days[1].left}실로 늘고 자동 마감이 풀렸어요. 11/16은 사장님 판매중지를 그대로 두고, B 예약도 그대로예요.` });
+    }
+  } else {
+    v.A.cancelled = true;
+    v.days.forEach((d, i) => { if (v.A.days.includes(i)) { d.left += 1; d.open = true; } });
+    if (v.events === 1) S.invLog.unshift({ k: 'bad', h: '<b>막아 둔 날이 풀림</b> 취소된 날짜를 모두 판매로 열어서, 사장님이 막아 둔 11/16까지 다시 팔리기 시작했어요.' });
+    else S.invLog.unshift({ k: 'bad', h: `<b>방이 늘어남</b> 같은 취소를 한 번 더 더해서 11/14가 ${v.days[0].left}실이 됐어요. 11/15는 B 예약이 있는데 ${v.days[1].left}실로 팔려 초과 예약이 생길 수 있어요.` });
+  }
+  renderInv();
+}
+
+/* ---------- 기능 플래그 ---------- */
+function renderFlags() {
+  const F = [['rate', '요금 변경', '대기열로 보내고 채널별 결과 기록'], ['cancel', '예약 취소 반영', '재고 복원 규칙과 중복 취소 막기'], ['msg', '게스트 메시지', '중복 발송 막기와 전송 확인']];
+  $('#flags').innerHTML = F.map(([k, t, d]) => `<div class="flag"><div><b>${t}</b><span>${S.flags[k] ? '새 처리 · ' + d : '꺼짐 · 기존 코드 그대로'}</span></div><button type="button" class="sw" role="switch" aria-checked="${S.flags[k]}" aria-label="${t} 새 처리 켜기" data-flag="${k}"></button></div>`).join('');
+}
+
+/* ---------- 칩 ---------- */
+function paintChips() {
+  $('#failChips').innerHTML = FAIL.map(([k, t]) => `<button type="button" class="chip" role="radio" aria-checked="${S.pick.fail === k}" data-fail="${k}">${t}</button>`).join('');
+  $('#chChips').innerHTML = CH.map((c, i) => `<button type="button" class="chip" role="radio" aria-checked="${S.pick.ch === i}" data-pch="${i}" ${S.pick.fail === 'none' ? 'disabled' : ''}>${c}</button>`).join('');
+}
+
+/* ---------- 공통 ---------- */
+function renderAll() { renderHero(); renderChan(); renderJobs(); renderEvents(); renderHook(); renderRecon(); }
+function live() {
+  document.querySelectorAll('[data-cd]').forEach(el => { el.textContent = secLeft(+el.dataset.cd); });
+  document.querySelectorAll('[data-ago]').forEach(el => { el.textContent = ago(+el.dataset.ago); });
+}
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  const box = $('#toasts');
+  box.appendChild(el);
+  while (box.children.length > 2) box.firstChild.remove();
+  setTimeout(() => el.remove(), 3200);
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('button, a');
+  if (!b) return;
+  if (b.dataset.make) return addJob(b.dataset.make);
+  if (b.dataset.fail) { S.pick.fail = b.dataset.fail; return paintChips(); }
+  if (b.dataset.pch) { S.pick.ch = +b.dataset.pch; return paintChips(); }
+  if (b.dataset.fix) { fix(+b.dataset.fix); return renderAll(); }
+  if (b.dataset.ev) { S.openEv = S.openEv === b.dataset.ev ? null : b.dataset.ev; return renderEvents(); }
+  if (b.dataset.flag) {
+    const k = b.dataset.flag; S.flags[k] = !S.flags[k]; renderFlags();
+    const t = { rate: '요금 변경', cancel: '예약 취소 반영', msg: '게스트 메시지' }[k];
+    return toast(S.flags[k] ? `${josa(t, '을', '를')} 새 처리로 켰어요.` : `${josa(t, '을', '를')} 껐어요. 바로 기존 코드로 돌아가요.`);
+  }
+  if (b.dataset.inv) {
+    S.invMode = b.dataset.inv;
+    document.querySelectorAll('[data-inv]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
+    invInit(); return renderInv();
+  }
+  if (b.dataset.env) {
+    if (b.dataset.env === 'prod') { $('#dlgProd').showModal(); }
+    return;
+  }
+  switch (b.dataset.act) {
+    case 'reauth': return reconnect(+b.dataset.ch);
+    case 'hookoff': return hookOff();
+    case 'hookon': return hookOn();
+    case 'fill': return fillMissed();
+  }
+  switch (b.id) {
+    case 'btnDup': {
+      const j = S.jobs.find(x => x.key === S.lastKey);
+      if (!j) return toast('먼저 작업을 하나 보내 주세요.');
+      j.dup++;
+      toast(`같은 멱등 키(${j.key})라 새 작업을 만들지 않았어요.`);
+      renderJobs(); flashJob(j.id);
+      document.getElementById('queue').scrollIntoView({ block: 'start' });
+      return;
+    }
+    case 'btnRestart': {
+      let n = 0;
+      for (const j of S.jobs) for (const t of j.tasks) if (t.st === 'sending') { t.st = 'checking'; t.restart = true; t.until = now() + 1600; t.script = []; n++; }
+      const waiting = S.jobs.flatMap(j => j.tasks).filter(t => ['queued', 'retry'].includes(t.st)).length;
+      toast(n || waiting ? `처리기를 다시 켰어요. 보내던 ${n}건은 반영 여부부터 확인하고, 기다리던 ${waiting}건은 그대로 이어서 보내요.` : '지금 처리 중인 작업이 없어요. 작업을 보낸 직후에 눌러 보세요.');
+      return renderAll();
+    }
+    case 'btnSame': return sameAgain();
+    case 'btnOrder': return outOfOrder();
+    case 'btnScan': return scan();
+    case 'btnFixAll': { S.recon.filter(r => r.st === 'open').forEach((r, i) => fix(r.id, i * 350)); return renderAll(); }
+    case 'invCancel': return invCancel(false);
+    case 'invDup': return invCancel(true);
+    case 'invReset': invInit(); return renderInv();
+    case 'dlgClose': return $('#dlgProd').close();
+  }
+});
+$('#dlgProd').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+
+/* 구역 이동 표시 */
+const links = [...document.querySelectorAll('.pills a')];
+const io = new IntersectionObserver(es => {
+  es.forEach(x => {
+    if (x.isIntersecting) {
+      links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + x.target.id));
+      const on = links.find(a => a.classList.contains('on'));
+      if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+document.querySelectorAll('main .sec').forEach(s => io.observe(s));
+
+/* ---------- 처음 상태 ---------- */
+function seed() {
+  const t = now();
+  const mk = (kind, title, key, at, cells) => ({ id: ++S.seq, kind, title, key, at, dup: 0, legacy: false, tasks: cells });
+  const okc = (i, note, ago_, extra) => Object.assign({ ch: i, st: 'ok', attempt: 1, hist: [], script: [], note, okAt: t - ago_ * 1000 }, extra || {});
+  S.jobs.push(
+    mk('cancel', 'BK-24109 취소 · 남은 방 보내기', 'cancel:BK-24109', t - 6 * 60 * 1000, [okc(0, '한 번에 반영', 360), okc(1, '한 번에 반영', 359), okc(2, '한 번에 반영', 358), okc(3, '한 번에 반영', 357)]),
+    mk('rate', '스탠다드 트윈 11/1(일) 95,000원', 'rate:std-twin:2026-11-01:95000', t - 12 * 60 * 1000, [okc(0, '한 번에 반영', 718), okc(1, '2번째 시도에 반영 · 타임아웃 1번', 712, { attempt: 2 }), okc(2, '3번째 시도에 반영 · 429 1번, 타임아웃 1번', 700, { attempt: 3 }), okc(3, '한 번에 반영', 717)])
+  );
+  // 지금 막 들어온 작업: Agoda에서 429
+  const live = { id: ++S.seq, kind: 'rate', title: '독채 11/22(일) 230,000원', key: 'rate:house:2026-11-22:230000', at: t - 4000, dup: 0, legacy: false, tasks: makeTasks('rate', false, { type: 'rate', ch: 2 }) };
+  live.tasks.forEach((x, i) => { x.until = t + 200 + i * 250; });
+  S.jobs.unshift(live);
+  S.lastKey = live.key;
+
+  S.events = [
+    ev({ at: t - 75 * 1000, id: 'evt_9c41d2', type: 'booking_new', text: '새 예약 BK-24135 · Airbnb', sub: '디럭스 더블 11/28(토) 2박', bk: 'BK-24135', ch: 'Airbnb', guest: '한*수', ph: '1904', res: 'done' }),
+    ev({ at: t - 250 * 1000, id: 'evt_9c41b8', type: 'booking_modification', rev: 2, text: 'BK-24131 변경 · 2번째 수정', sub: '체크인 15시에서 17시로', bk: 'BK-24131', ch: 'Booking.com', guest: '이*아', ph: '4821', res: 'done' }),
+    ev({ at: t - 361 * 1000, id: 'evt_9c41a0', type: 'booking_cancellation', text: 'BK-24109 취소 · Airbnb', sub: '같은 이벤트 ID가 이미 있어요', bk: 'BK-24109', ch: 'Airbnb', guest: '오*린', ph: '6612', res: 'dup' }),
+    ev({ at: t - 362 * 1000, id: 'evt_9c41a0', type: 'booking_cancellation', text: 'BK-24109 취소 · Airbnb', sub: '재고 1실 복원 · 4개 채널로 전송', bk: 'BK-24109', ch: 'Airbnb', guest: '오*린', ph: '6612', res: 'done' })
+  ];
+  seedRecon();
+  invInit();
+}
+
+seed();
+paintSamples(); paintChips(); renderFlags(); renderInv(); renderAll();
+setInterval(step, 250);
+setInterval(() => { S.checkedAt = now(); }, 60000);
+})();
+</script>
+</body>
+</html>
