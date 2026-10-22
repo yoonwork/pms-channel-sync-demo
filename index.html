@@ -26,7 +26,7 @@
   --neu:#4E5968; --neu-dot:#B0B8C1; --neu-bg:#F2F4F6;
   --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --r-card:20px; --r-in:14px; --r-btn:12px; --r-pill:999px;
+  --r-hero:28px; --r-card:24px; --r-in:14px; --r-btn:12px; --r-pill:999px;
   --float:0 2px 6px rgba(16,24,40,.06),0 12px 32px rgba(16,24,40,.14);
 }
 </style>
@@ -34,7 +34,7 @@
 *{box-sizing:border-box}
 [hidden]{display:none !important}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:76px}
-body{margin:0;background:var(--page);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--sec);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
 h1,h2,h3,p,ul,ol,dl,dd{margin:0}
 ul,ol{padding:0;list-style:none}
 button{font-family:inherit}
@@ -47,15 +47,16 @@ code,.mono{font-family:var(--mono);font-size:12px}
 .band b{font-weight:600;margin-right:6px}
 
 /* 머리 */
-.top{background:var(--page)}
-.top-in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:4px}
+.top{background:transparent}
+.top-in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:0}
 .brandbox{display:flex;align-items:center;gap:12px;min-width:0}
 .mark{width:40px;height:40px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
 .mark svg{width:22px;height:22px}
 .prod{font-size:15px;font-weight:700;line-height:1.3}
 .prop{font-size:13px;color:var(--mut);line-height:1.4}
 
-.seg{display:inline-flex;background:var(--fill);border-radius:var(--r-btn);padding:4px;gap:2px}
+.seg{display:inline-flex;background:var(--fill-2);border-radius:var(--r-btn);padding:4px;gap:2px}
+.card .seg{background:var(--fill)}
 .seg button{height:40px;border:0;background:transparent;border-radius:9px;padding:0 14px;font-size:14px;font-weight:600;color:var(--mut);cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .seg button:hover{color:var(--ink)}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.08)}
@@ -71,39 +72,67 @@ code,.mono{font-family:var(--mono);font-size:12px}
 .st{display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
 .pulse .dot{animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){.pulse .dot{animation:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){.pulse .dot,.pulse .ico{animation:none}html{scroll-behavior:auto}}
+
+/* 선 아이콘 공통 */
+.ico{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* 첫 화면 */
-.hero{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:32px;align-items:center;padding-top:32px;padding-bottom:32px}
-.envline{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:var(--r-pill);padding:6px 12px;margin-bottom:16px}
-h1{font-size:32px;line-height:1.3;letter-spacing:-.025em;font-weight:700;max-width:620px}
-.hero-sub{font-size:15px;color:var(--ink-2);margin-top:8px}
-.stats{background:var(--sec);border-radius:var(--r-card);padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:20px 24px}
-.stats dt{font-size:13px;color:var(--mut);font-weight:500}
-.stats dd{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:2px;font-variant-numeric:tabular-nums}
+.hero-wrap{padding-top:20px;padding-bottom:8px;display:grid;gap:12px}
+.hero{background:var(--card);border-radius:var(--r-hero);padding:32px 40px 0;display:grid;grid-template-columns:minmax(0,1fr) 340px;column-gap:40px}
+.hero-main{padding-bottom:28px;min-width:0}
+.envline{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:var(--r-pill);padding:6px 12px;margin-bottom:20px}
+.hero-head{display:flex;align-items:flex-start;gap:16px}
+.hero-ic{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--ok-bg);color:var(--ok-dot)}
+.hero-ic .ico{width:28px;height:28px;stroke-width:2}
+.hero[data-state="info"] .hero-ic{background:var(--info-bg);color:var(--info-dot)}
+.hero[data-state="warn"] .hero-ic{background:var(--warn-bg);color:var(--warn-dot)}
+.hero[data-state="bad"] .hero-ic{background:var(--bad-bg);color:var(--bad-dot)}
+.hero-ic.pulse .ico,.cc-st.pulse .ico{animation:pulse-soft 1.2s ease-in-out infinite}
+@keyframes pulse-soft{0%,100%{opacity:1}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.hero-ic.pulse .ico,.cc-st.pulse .ico{animation:none}}
+h1{font-size:32px;line-height:1.3;letter-spacing:-.03em;font-weight:700;max-width:620px;padding-top:6px}
+.hero-sub{font-size:15px;color:var(--mut);margin-top:6px}
+.score{border-left:1px solid var(--fill);padding:4px 0 28px 40px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.score-l{font-size:14px;font-weight:600;color:var(--ink-2)}
+.score-n{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.score-n .unit{font-size:20px;font-weight:600;margin-left:6px}
+.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:16px}
+.bar i{height:8px;border-radius:4px;background:var(--fill-2)}
+.bar i.ok{background:var(--ok-dot)} .bar i.info{background:var(--info-dot)} .bar i.warn{background:var(--warn-dot)} .bar i.bad{background:var(--bad-dot)}
+.score-c{font-size:13px;color:var(--mut);margin-top:8px}
+.stats{grid-column:1/-1;border-top:1px solid var(--fill);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0 -40px;padding:0 16px}
+.stats > div{padding:20px 24px}
+.stats > div + div{border-left:1px solid var(--fill)}
+.stats dt{font-size:14px;color:var(--mut);font-weight:500}
+.stats dd{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.3;margin-top:2px;font-variant-numeric:tabular-nums}
 .stats dd.k-bad{color:var(--bad)} .stats dd.k-warn{color:var(--warn)}
 .unit{font-size:15px;color:var(--mut);font-weight:500;margin-left:2px}
 
-.alerts{grid-column:1/-1;display:grid;gap:8px}
+.alerts{display:grid;gap:8px}
 .alerts:empty{display:none}
-.alert{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--bad-bg);border-radius:var(--r-in);padding:12px 12px 12px 20px}
-.alert p{font-size:14px;color:var(--ink);font-weight:500}
+.alert{display:flex;align-items:center;gap:16px;background:var(--bad-bg);border-radius:20px;padding:16px 16px 16px 20px}
+.alert > .ico{color:var(--bad-dot);width:28px;height:28px}
+.alert p{flex:1;min-width:0;font-size:15px;color:var(--ink);font-weight:500}
 .alert p b{color:var(--bad);font-weight:700;margin-right:6px}
-.alert p span{display:block;font-size:13px;color:var(--ink-2);font-weight:400}
+.alert p span{display:block;font-size:14px;color:var(--ink-2);font-weight:400}
 
 /* 구역 이동 */
-.jump{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:saturate(1.2)}
+.jump{position:sticky;top:0;z-index:20;background:rgba(242,244,246,.97)}
 .jump .wrap{padding-top:8px;padding-bottom:8px}
 .pills{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .pills::-webkit-scrollbar{display:none}
-.pills a{flex:none;display:inline-flex;align-items:center;height:44px;padding:0 16px;border-radius:var(--r-pill);font-size:15px;font-weight:600;color:var(--mut);text-decoration:none;white-space:nowrap}
-.pills a:hover{color:var(--ink);background:var(--soft)}
+.pills a{flex:none;display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:var(--r-pill);font-size:15px;font-weight:600;color:var(--mut);text-decoration:none;white-space:nowrap}
+.pills a:hover{color:var(--ink);background:var(--fill-2)}
 .pills a.on{background:var(--ink);color:#fff}
 
 /* 회색 구역 */
-.area{background:var(--sec);padding:16px 0 64px}
-.sec{padding-top:40px}
-.sec-head{margin-bottom:16px;max-width:760px}
+.area{padding:0 0 72px}
+.sec{padding-top:56px}
+#ch.sec{padding-top:24px}
+.sec-head{margin-bottom:20px;max-width:760px}
+.sec-head.row{max-width:none;display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.sec-head .meta{font-size:13px;color:var(--mut);white-space:nowrap;margin:0;display:inline-flex;align-items:center;gap:6px}
 h2{font-size:24px;line-height:1.3;letter-spacing:-.02em;font-weight:700}
 .sec-head p{font-size:15px;color:var(--ink-2);margin-top:4px}
 .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:start}
@@ -130,15 +159,28 @@ h3{font-size:17px;font-weight:700;line-height:1.4}
 .btn:disabled{opacity:.42;cursor:not-allowed}
 .btn-row{display:flex;flex-wrap:wrap;gap:8px}
 
-/* 채널 표 */
-.ctab{display:grid}
-.crow{display:grid;grid-template-columns:1.25fr 1.35fr 1.7fr .8fr .9fr 1.25fr;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}
-.crow.head{border-top:0;padding:0 0 8px;font-size:13px;color:var(--mut);font-weight:500}
-.crow .cname{font-size:15px;font-weight:700}
-.crow .r{text-align:right}
-.crow .sub{display:block;font-size:12px;color:var(--mut);font-weight:400}
-.crow .m-lbl{display:none}
-.crow .c-mob{display:none}
+/* 채널 카드 */
+.chs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.cc{background:var(--card);border-radius:var(--r-card);padding:24px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.cc-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cc-name{font-size:20px;font-weight:700;letter-spacing:-.01em;line-height:1.3}
+.conn{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--mut);white-space:nowrap}
+.conn .ico{width:16px;height:16px}
+.conn.bad{color:var(--bad)}
+.cc-st{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;min-height:40px;padding:0 16px 0 12px;border-radius:var(--r-pill);font-size:17px;font-weight:700;white-space:nowrap}
+.cc-st .ico{width:22px;height:22px;stroke-width:2}
+.cc-st.k-ok{background:var(--ok-bg)} .cc-st.k-info{background:var(--info-bg)} .cc-st.k-warn{background:var(--warn-bg)} .cc-st.k-bad{background:var(--bad-bg)}
+.cc-last .lbl{display:block;font-size:13px;color:var(--mut);font-weight:500}
+.cc-last b{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.3;font-variant-numeric:tabular-nums}
+.cc-last .ago{font-size:14px;color:var(--mut);margin-left:6px}
+.cc-n{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:8px;padding-top:16px;border-top:1px solid var(--fill)}
+.cc-n dt{font-size:13px;color:var(--mut)}
+.cc-n dd{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.cc-n dd.k-bad{color:var(--bad)}
+
+/* 작업 보내 보기 */
+.mk{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);column-gap:40px}
+.mk-b{border-left:1px solid var(--fill);padding-left:40px}
 
 /* 작업 만들기 */
 .act{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:transparent;border:0;border-radius:var(--r-in);padding:12px;margin:0 -12px;width:calc(100% + 24px);cursor:pointer;color:var(--ink)}
@@ -169,7 +211,7 @@ h3{font-size:17px;font-weight:700;line-height:1.4}
 .job-k code{color:var(--ink-2);word-break:break-all}
 .job-k .dup{color:var(--info);font-weight:600}
 .cells{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
-.cell{background:var(--soft);border-radius:var(--r-in);padding:12px;min-height:96px;display:flex;flex-direction:column;gap:2px}
+.cell{background:#F5F6F8;border-radius:var(--r-in);padding:12px;min-height:96px;display:flex;flex-direction:column;gap:2px}
 .cell .cn{font-size:12px;color:var(--mut);font-weight:600}
 .cell .st{font-size:14px}
 .cell .cx{font-size:12px;color:var(--ink-2);line-height:1.45}
@@ -216,7 +258,7 @@ h3{font-size:17px;font-weight:700;line-height:1.4}
 
 /* 취소와 재고 */
 .days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.day{background:var(--soft);border-radius:var(--r-in);padding:16px}
+.day{background:#F5F6F8;border-radius:var(--r-in);padding:16px}
 .day-d{font-size:14px;font-weight:700}
 .day-n{font-size:32px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:8px;font-variant-numeric:tabular-nums}
 .day-n .unit{font-size:14px}
@@ -273,22 +315,66 @@ dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
 @media (max-width:1080px){
   .s4,.s5,.s7,.s8{grid-column:span 12}
   .hero{grid-template-columns:1fr}
+  .hero-main{padding-bottom:24px}
+  .score{border-left:0;border-top:1px solid var(--fill);padding:20px 0 24px;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:16px}
+  .score-l{grid-column:1;grid-row:1}
+  .score-c{grid-column:1;grid-row:2;margin-top:0}
+  .score-n{grid-column:2;grid-row:1/3;margin-top:0}
+  .bar{grid-column:1/-1;grid-row:3}
+  .chs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mk{grid-template-columns:1fr}
+  .mk-b{border-left:0;padding-left:0;border-top:1px solid var(--fill);padding-top:20px;margin-top:16px}
 }
 @media (max-width:720px){
   .wrap{padding:0 16px}
-  .band{padding:10px 16px;text-align:left}
-  .band b{display:block}
+  .band{padding:8px 16px;text-align:left;font-size:12px}
   .top-in{padding-top:16px}
   .prod{font-size:14px}
   .seg button{height:44px;padding:0 12px;font-size:14px}
-  .hero{gap:20px;padding-top:24px;padding-bottom:24px}
-  h1{font-size:24px}
-  .stats{padding:16px 20px;gap:16px}
-  .stats dd{font-size:24px}
-  .alert{flex-direction:column;align-items:stretch;padding:14px 16px}
+  .hero-wrap{padding-top:16px}
+  .hero{padding:20px 20px 0;border-radius:24px}
+  .hero-main{padding-bottom:20px;display:flex;flex-direction:column}
+  .envline{order:2;font-size:12px;margin:16px 0 0;padding:6px 12px;align-items:flex-start;line-height:1.5}
+  .envline .dot{margin-top:5px}
+  .hero-head{gap:12px}
+  .hero-ic{width:40px;height:40px;margin-top:2px}
+  .hero-ic .ico{width:22px;height:22px}
+  h1{font-size:24px;padding-top:0}
+  .hero-sub{font-size:14px}
+  .score{padding:16px 0 20px;column-gap:12px}
+  .score-n{font-size:32px}
+  .score-n .unit{font-size:17px}
+  .bar{margin-top:12px}
+  .stats{margin:0 -20px;padding:0 8px;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stats > div{padding:14px 8px 16px 12px}
+  .stats dt{font-size:12px;white-space:nowrap}
+  .stats dd{font-size:20px}
+  .stats .unit{font-size:13px}
+  .alert{flex-wrap:wrap;padding:16px}
+  .alert > .ico{width:24px;height:24px;align-self:flex-start}
+  .alert p{font-size:14px}
+  .alert p span{font-size:13px}
   .alert .btn{width:100%}
   .pills a{font-size:14px;padding:0 14px}
-  .sec{padding-top:32px}
+  .sec{padding-top:40px}
+  #ch.sec{padding-top:16px}
+  .sec-head.row{display:block}
+  .sec-head .meta{margin-top:8px;white-space:normal}
+  .chs{grid-template-columns:1fr;gap:12px;margin-bottom:12px}
+  .cc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:20px}
+  .cc-top{display:contents}
+  .cc-name{grid-column:1;grid-row:1}
+  .conn{grid-column:1;grid-row:2}
+  .cc-st{grid-column:2;grid-row:1/3;align-self:center;font-size:15px;min-height:36px;padding:0 12px 0 10px}
+  .cc-st .ico{width:20px;height:20px}
+  .cc-last{grid-column:1/-1;margin-top:16px;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px}
+  .cc-last .lbl{display:inline;font-size:14px;margin-right:auto}
+  .cc-last b{font-size:20px}
+  .cc-last .ago{font-size:13px;margin-left:0}
+  .cc-n{grid-column:1/-1;margin-top:12px;padding-top:12px;display:flex;justify-content:flex-start;gap:16px}
+  .cc-n > div{display:flex;align-items:baseline;gap:4px}
+  .cc-n dt{font-size:14px}
+  .cc-n dd{font-size:15px}
   h2{font-size:20px}
   .sec-head p{font-size:14px}
   .grid{gap:12px}
@@ -296,12 +382,7 @@ dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
   .card-h{flex-direction:column}
   .card-h .btn-row{width:100%}
   .card-h .btn-row .btn{flex:1}
-  .crow.head,.rrow.head,.ev.head{display:none}
-  .crow{grid-template-columns:1fr auto;gap:4px 12px;padding:14px 0}
-  .crow:nth-child(2){border-top:0}
-  .crow .c-last,.crow .c-q,.crow .c-r,.crow .c-conn{display:none}
-  .crow .c-mob{display:block;grid-column:1/-1;font-size:13px;color:var(--mut);line-height:1.5}
-  .crow .c-mob b{font-weight:600;color:var(--bad)}
+  .rrow.head,.ev.head{display:none}
   .rrow .m-lbl{display:inline;color:var(--mut);font-weight:400}
   .cells{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ev{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
@@ -351,18 +432,31 @@ dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
   </div>
 </header>
 
-<section class="hero wrap" aria-labelledby="heroTitle">
-  <div>
-    <p class="envline"><i class="dot warn"></i>시험 환경 · Channex 시험 계정에 연결 · 실제 손님 예약과 재고는 바뀌지 않아요</p>
-    <h1 id="heroTitle">4개 채널 모두 정상이에요</h1>
-    <p class="hero-sub" id="heroSub">달빛마당 스테이 · 객실 4종</p>
+<section class="hero-wrap wrap" aria-labelledby="heroTitle">
+  <div class="hero" id="hero" data-state="ok">
+    <div class="hero-main">
+      <p class="envline"><i class="dot warn"></i>시험 환경 · Channex 시험 계정에 연결 · 실제 손님 예약과 재고는 바뀌지 않아요</p>
+      <div class="hero-head">
+        <span class="hero-ic" id="heroIc" aria-hidden="true"></span>
+        <div>
+          <h1 id="heroTitle">4개 채널 모두 정상이에요</h1>
+          <p class="hero-sub" id="heroSub">달빛마당 스테이 · 객실 4종</p>
+        </div>
+      </div>
+    </div>
+    <div class="score">
+      <p class="score-l">문제없는 채널</p>
+      <p class="score-n"><span id="heroOk">4</span><span class="unit">/ 4곳</span></p>
+      <div class="bar" id="heroBar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <p class="score-c" id="heroBarNote">Airbnb · Booking.com · Agoda · Trip.com</p>
+    </div>
+    <dl class="stats" aria-label="지금 상태 요약">
+      <div><dt>보내는 중</dt><dd id="stBusy">0<span class="unit">건</span></dd></div>
+      <div><dt>재시도 중</dt><dd id="stRetry">0<span class="unit">건</span></dd></div>
+      <div><dt>실패</dt><dd id="stFail">0<span class="unit">건</span></dd></div>
+      <div><dt>기록 불일치</dt><dd id="stRecon">0<span class="unit">건</span></dd></div>
+    </dl>
   </div>
-  <dl class="stats" aria-label="지금 상태 요약">
-    <div><dt>보내는 중</dt><dd id="stBusy">0<span class="unit">건</span></dd></div>
-    <div><dt>재시도 중</dt><dd id="stRetry">0<span class="unit">건</span></dd></div>
-    <div><dt>실패</dt><dd id="stFail">0<span class="unit">건</span></dd></div>
-    <div><dt>기록 불일치</dt><dd id="stRecon">0<span class="unit">건</span></dd></div>
-  </dl>
   <div class="alerts" id="alerts" aria-live="polite"></div>
 </section>
 
@@ -384,19 +478,17 @@ dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
 
     <!-- 채널 상태 -->
     <section class="sec" id="ch" aria-labelledby="h-ch">
-      <div class="sec-head">
-        <h2 id="h-ch">채널 4곳 반영 상태</h2>
-        <p>한 번 바꾸면 네 곳에 다 들어갔는지 여기서 봐요. 채널마다 따로 들어가 확인하지 않아도 돼요.</p>
-      </div>
-      <div class="grid">
-        <div class="card s8">
-          <div class="card-h">
-            <div><h3>채널별 상태</h3><p id="chMeta">마지막 점검 --:--:--</p></div>
-          </div>
-          <div class="ctab" id="chTable" role="table" aria-label="채널별 상태"></div>
+      <div class="sec-head row">
+        <div>
+          <h2 id="h-ch">채널 4곳 반영 상태</h2>
+          <p>한 번 바꾸면 네 곳에 다 들어갔는지 여기서 봐요. 채널마다 따로 들어가 확인하지 않아도 돼요.</p>
         </div>
+        <p class="meta" id="chMeta">마지막 점검 --:--:--</p>
+      </div>
+      <div class="chs" id="chTable" role="list" aria-label="채널별 상태"></div>
 
-        <div class="card s4">
+      <div class="card mk">
+        <div class="mk-a">
           <div class="card-h"><div><h3>작업 보내 보기</h3><p>누르면 4개 채널로 보낼 작업이 대기열에 쌓여요.</p></div></div>
           <button type="button" class="act" data-make="rate">
             <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0z"/><circle cx="8" cy="8" r="1.4"/></svg></span>
@@ -410,7 +502,8 @@ dialog .btn{margin-top:20px;width:100%;height:52px;font-size:16px}
             <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span>
             <span><b>게스트 메시지</b><span class="d" id="dMsg"></span></span>
           </button>
-          <div class="mk-sep"></div>
+        </div>
+        <div class="mk-b">
           <div class="lbl" id="lFail">실패 섞기</div>
           <div class="chips" role="radiogroup" aria-labelledby="lFail" id="failChips"></div>
           <div class="lbl" id="lCh">어느 채널에</div>
@@ -589,6 +682,15 @@ const ST = {
   checking: { t: '확인 중', k: 'warn', p: 1 }, ok: { t: '반영됨', k: 'ok' }, failed: { t: '실패', k: 'bad' },
   unsupported: { t: '지원 안 함', k: 'neu' }, legacy: { t: '기존 방식', k: 'neu' }
 };
+const SVG = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  ok: SVG('<circle cx="12" cy="12" r="9"/><path d="m8.2 12.3 2.6 2.6 5-5.2"/>'),
+  info: SVG('<path d="M20.5 3.5 3.8 10.1l7 2.9 2.9 7z"/><path d="m10.8 13 4.4-4.4"/>'),
+  warn: SVG('<path d="M19.6 12a7.6 7.6 0 1 1-2.3-5.4"/><path d="M19.6 4.3v4.2h-4.2"/>'),
+  bad: SVG('<circle cx="12" cy="12" r="9"/><path d="M12 7.6v5.6M12 16.3v.2"/>'),
+  link: SVG('<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1"/>'),
+  unlink: SVG('<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1"/><path d="M4 4l16 16"/>')
+};
 const FAIL = [['none', '없음'], ['auth', '인증 실패'], ['rate', '호출 제한 429'], ['timeout', '타임아웃'], ['lost', '응답 유실']];
 const KIND = { rate: '요금 변경', cancel: '취소 반영', msg: '게스트 메시지' };
 
@@ -765,21 +867,30 @@ function counts() {
 const names = ts => [...new Set(ts.map(t => CH[t.ch]))].join('·');
 function renderHero() {
   const c = counts();
-  let title = '4개 채널 모두 정상이에요';
-  if (!S.hook.on) title = '웹훅이 꺼져서 새 예약 알림을 못 받고 있어요';
-  else if (c.failed.length) title = `${names(c.failed)} 작업이 실패해서 확인이 필요해요`;
-  else if (c.retry.length) title = `${names(c.retry)}에 보낼 작업을 다시 보내는 중이에요`;
-  else if (c.busy.length) title = `작업을 채널 ${new Set(c.busy.map(t => t.ch)).size}곳에 보내는 중이에요`;
+  let title = '4개 채널 모두 정상이에요', hs = 'ok';
+  if (!S.hook.on) { title = '웹훅이 꺼져서 새 예약 알림을 못 받고 있어요'; hs = 'bad'; }
+  else if (c.failed.length) { title = `${names(c.failed)} 작업이 실패해서 확인이 필요해요`; hs = 'bad'; }
+  else if (c.retry.length) { title = `${names(c.retry)}에 보낼 작업을 다시 보내는 중이에요`; hs = 'warn'; }
+  else if (c.busy.length) { title = `작업을 채널 ${new Set(c.busy.map(t => t.ch)).size}곳에 보내는 중이에요`; hs = 'info'; }
   $('#heroTitle').textContent = title;
   $('#heroSub').textContent = `달빛마당 스테이 · 객실 4종 · 오늘 만든 작업 ${S.made}건`;
+  const hero = $('#hero');
+  if (hero.dataset.state !== hs || !$('#heroIc').firstChild) { hero.dataset.state = hs; $('#heroIc').innerHTML = ICON[hs]; }
+  $('#heroIc').classList.toggle('pulse', hs === 'info' || hs === 'warn');
+  const cs = S.chan.map((_, i) => chanState(i));
+  const fine = cs.filter(s => s.k === 'ok' || s.k === 'info').length;
+  $('#heroOk').textContent = fine;
+  $('#heroBar').innerHTML = cs.map(s => `<i class="${s.k}"></i>`).join('');
+  const issues = cs.map((s, i) => (s.k === 'ok' || s.k === 'info') ? '' : `${CH[i]} ${s.t}`).filter(Boolean);
+  $('#heroBarNote').textContent = issues.length ? issues.join(' · ') : CH.join(' · ');
   const set = (id, n, k) => { const el = $(id); el.innerHTML = `${n}<span class="unit">건</span>`; el.className = n && k ? 'k-' + k : ''; };
   set('#stBusy', c.busy.length); set('#stRetry', c.retry.length, 'warn'); set('#stFail', c.failed.length, 'bad'); set('#stRecon', c.recon, 'warn');
 
   const al = [];
   if (!S.hook.on) al.push(S.hook.feed.length
-    ? `<div class="alert"><p><b>웹훅 꺼짐</b>${hms(S.hook.offAt)}부터 Channex 알림이 오지 않아요.<span>관리자에게 알림을 보냈어요. 주기 점검으로 빠진 예약 ${S.hook.feed.length}건을 가져올 수 있어요.</span></p><button type="button" class="btn pri" data-act="fill">빠진 예약 가져오기</button></div>`
-    : `<div class="alert"><p><b>웹훅 꺼짐</b>빠진 예약은 모두 가져왔어요.<span>웹훅을 다시 켜야 새 알림을 바로 받아요. 켜기 전까지는 10분마다 피드로 채워요.</span></p><button type="button" class="btn white" data-act="hookon">웹훅 다시 켜기</button></div>`);
-  S.chan.forEach((ch, i) => { if (ch.conn === 'reauth') al.push(`<div class="alert"><p><b>연결 끊김</b>${ch.name} 연결 인증이 만료됐어요.<span>자동으로 다시 보내지 않고 멈춰 뒀어요. 다시 연결하면 실패한 작업을 이어서 보내요.</span></p><button type="button" class="btn white" data-act="reauth" data-ch="${i}">다시 연결하고 재처리</button></div>`); });
+    ? `<div class="alert">${ICON.bad}<p><b>웹훅 꺼짐</b>${hms(S.hook.offAt)}부터 Channex 알림이 오지 않아요.<span>관리자에게 알림을 보냈어요. 주기 점검으로 빠진 예약 ${S.hook.feed.length}건을 가져올 수 있어요.</span></p><button type="button" class="btn pri" data-act="fill">빠진 예약 가져오기</button></div>`
+    : `<div class="alert">${ICON.bad}<p><b>웹훅 꺼짐</b>빠진 예약은 모두 가져왔어요.<span>웹훅을 다시 켜야 새 알림을 바로 받아요. 켜기 전까지는 10분마다 피드로 채워요.</span></p><button type="button" class="btn white" data-act="hookon">웹훅 다시 켜기</button></div>`);
+  S.chan.forEach((ch, i) => { if (ch.conn === 'reauth') al.push(`<div class="alert">${ICON.unlink}<p><b>연결 끊김</b>${ch.name} 연결 인증이 만료됐어요.<span>자동으로 다시 보내지 않고 멈춰 뒀어요. 다시 연결하면 실패한 작업을 이어서 보내요.</span></p><button type="button" class="btn white" data-act="reauth" data-ch="${i}">다시 연결하고 재처리</button></div>`); });
   $('#alerts').innerHTML = al.join('');
 }
 
@@ -793,22 +904,23 @@ function chanState(i) {
   return { k: 'ok', t: '정상' };
 }
 function renderChan() {
-  const rows = ['<div class="crow head" role="row"><span role="columnheader">채널</span><span role="columnheader">상태</span><span role="columnheader">마지막 정상 반영</span><span role="columnheader" class="r">처리 중</span><span role="columnheader" class="r">오늘 재시도</span><span role="columnheader">연결</span></div>'];
-  S.chan.forEach((c, i) => {
+  const all = S.jobs.flatMap(j => j.tasks);
+  $('#chTable').innerHTML = S.chan.map((c, i) => {
     const s = chanState(i);
-    const q = S.jobs.flatMap(j => j.tasks).filter(t => t.ch === i && ['queued', 'sending', 'retry', 'checking'].includes(t.st)).length;
-    const conn = c.conn === 'reauth' ? '<span class="st k-bad"><i class="dot"></i>인증 만료</span>' : '<span class="st k-ok"><i class="dot"></i>연결됨</span>';
-    rows.push(`<div class="crow" role="row">
-      <span class="cname" role="cell">${c.name}</span>
-      <span role="cell"><span class="st k-${s.k}${s.p ? ' pulse' : ''}"><i class="dot"></i>${s.t}</span></span>
-      <span class="c-last num" role="cell"><span class="m-lbl">마지막 정상 반영</span><span><span>${hms(c.lastOk)}</span><span class="sub" data-ago="${c.lastOk}">${ago(c.lastOk)}</span></span></span>
-      <span class="c-q r num" role="cell"><span class="m-lbl">처리 중</span><span>${q}건</span></span>
-      <span class="c-r r num" role="cell"><span class="m-lbl">오늘 재시도</span><span>${c.retries}번</span></span>
-      <span class="c-conn" role="cell"><span class="m-lbl">연결</span>${conn}</span>
-      <span class="c-mob num">마지막 정상 ${hms(c.lastOk)} · 처리 중 ${q}건 · 오늘 재시도 ${c.retries}번${c.conn === 'reauth' ? ' · <b>인증 만료</b>' : ''}</span>
-    </div>`);
-  });
-  $('#chTable').innerHTML = rows.join('');
+    const q = all.filter(t => t.ch === i && ['queued', 'sending', 'retry', 'checking'].includes(t.st)).length;
+    const f = all.filter(t => t.ch === i && t.st === 'failed').length;
+    const conn = c.conn === 'reauth' ? `<span class="conn bad">${ICON.unlink}인증 만료</span>` : `<span class="conn">${ICON.link}연결됨</span>`;
+    return `<article class="cc" role="listitem" aria-label="${c.name} ${s.t}">
+      <div class="cc-top"><span class="cc-name">${c.name}</span>${conn}</div>
+      <span class="cc-st k-${s.k}${s.p ? ' pulse' : ''}">${ICON[s.k]}${s.t}</span>
+      <div class="cc-last"><span class="lbl">마지막 정상 반영</span><b>${hms(c.lastOk)}</b><span class="ago" data-ago="${c.lastOk}">${ago(c.lastOk)}</span></div>
+      <dl class="cc-n">
+        <div><dt>실패</dt><dd class="${f ? 'k-bad' : ''}">${f}건</dd></div>
+        <div><dt>처리 중</dt><dd>${q}건</dd></div>
+        <div><dt>오늘 재시도</dt><dd>${c.retries}번</dd></div>
+      </dl>
+    </article>`;
+  }).join('');
   $('#chMeta').textContent = `마지막 점검 ${hms(S.checkedAt)} · 1분마다`;
 }
 
